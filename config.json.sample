@@ -1,0 +1,6 @@
+{
+  "token": "blah-blah-blah",
+  "clientId": "12345",
+  "bugsnagKey": "abc123",
+  "environment": "development"
+}
