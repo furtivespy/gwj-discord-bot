@@ -17,13 +17,13 @@ module.exports = {
       (c) => c.name.toLowerCase() == `${guildCategory}` && c.type == ChannelType.GuildCategory
     );
 
-    interaction.client.logger.info(`trying to create voice channel ${name}`, "voiceCreate.js");
+    interaction.client.logger.info(`trying to create voice channel ${name} in ${category?.name}`, "voiceCreate.js");
     const channel = await interaction.guild.channels.create({
       name: name,
       type: ChannelType.GuildVoice,
     });
-    interaction.client.logger.info("created voice channel", "voiceCreate.js");
-    if (category) channel.setParent(category.id);
+    interaction.client.logger.info(`created voice channel ${name} in ${category?.name}`, "voiceCreate.js");
+    if (category) await channel.setParent(category.id);
 
     await interaction.reply({ content: `Created ${channel} - Click to hop in!`, ephemeral: true });
   },

@@ -5,7 +5,11 @@ module.exports = (botClient, ...eventData) => {
   if (!oldState.channel) return;
   if (oldState.channel.parent.name.toLowerCase() === `on-demand voice`) {
     if (oldState.channel.members.size === 0) {
-      oldState.channel.delete();
+      try {
+        oldState.channel.delete();
+      } catch (error) {
+        botClient.logger.error(error, "voiceStateUpdate.js");
+      }
     }
   }
 
