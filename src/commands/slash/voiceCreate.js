@@ -25,12 +25,7 @@ module.exports = {
           c.name.toLowerCase() == `${guildCategory}` &&
           c.type == ChannelType.GuildCategory
       );
-      interaction.client.logger.error(
-        `error finding category ${guildCategory}`,
-        "voiceCreate.js"
-      );
 
-      interaction.client.logger.info(`category found?`, "voiceCreate.js");
       interaction.client.logger.info(
         `trying to create voice channel ${name} in ${category?.name}[${category?.id}] `,
         "voiceCreate.js"
@@ -39,13 +34,13 @@ module.exports = {
       const channel = await interaction.guild.channels.create({
         name: name,
         type: ChannelType.GuildVoice,
+        parent: category || 454471197510598666,
       });
 
       interaction.client.logger.info(
         `created voice channel ${name} in ${category?.name}`,
         "voiceCreate.js"
       );
-      if (category) await channel.setParent(category.id);
 
       await interaction.reply({
         content: `Created ${channel} - Click to hop in!`,
