@@ -1,3 +1,4 @@
+require('dotenv').config();
 const {
   Client,
   Collection,
@@ -25,7 +26,7 @@ const presence = {
 class DiscordBot extends Client {
   constructor(options) {
     super(options);
-    this.config = require("../config.json");
+    this.config = require(process.env.BOT_CONFIG);
 
     //requiring the Logger class for easy console logging
     this.logger = require("./util/logger.js")({
@@ -40,6 +41,11 @@ class DiscordBot extends Client {
 }
 
 const init = async () => {
+  // Delay the start of the bot for debugging
+  //console.log("Starting bot in 1 minutes...");
+  //await new Promise(resolve => setTimeout(resolve, 1 * 60 * 1000));
+  console.log("Starting bot now...");
+  
   const bot = new DiscordBot({
     partials,
     intents,

@@ -5,7 +5,7 @@ module.exports = (botClient, ...eventData) => {
   if (!command) return;
   try {
     botClient.logger.cmd(interaction.commandName);
-    command.execute(interaction);
+    command.execute(interaction, botClient);
   } catch (error) {
     botClient.logger.error(error, "interactionCreate.js");
     return interaction.reply({

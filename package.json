@@ -12,6 +12,10 @@
     "@bugsnag/js": "^7.18.0",
     "chalk": "4.1.2",
     "discord.js": "^14.6.0",
+    "dotenv": "^16.4.5",
     "moment": "^2.29.4"
+  },
+  "devDependencies": {
+    "@flydotio/dockerfile": "^0.5.8"
   }
 }

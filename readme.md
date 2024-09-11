@@ -9,6 +9,7 @@ Stancy Bot - A Voice Channel Creation Bot for Gamers With Jobs
 ## To Run Me:
 
 * Rename `config.json.sample` to `config.json` and edit the values to your secrets
+* Rename `.env.sample` to `.env` and edit the values to your Environment
 * Install package dependencies `npm i`
 * Run the bot `node .`
 
