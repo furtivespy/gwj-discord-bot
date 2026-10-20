@@ -1,16 +1,12 @@
+const { shouldDeleteEmptyOnDemandChannel } = require("../util/onDemandVoice");
+
 module.exports = (botClient, ...eventData) => {
   botClient.logger.info("Voice State Update", "voiceStateUpdate.js");
-  [oldState, newState] = eventData;
-  if (oldState.channelId === newState.channelId) return;
-  if (!oldState.channel) return;
-  if (oldState.channel.parent.name.toLowerCase() === `on-demand voice`) {
-    if (oldState.channel.members.size === 0) {
-      try {
-        oldState.channel.delete();
-      } catch (error) {
-        botClient.logger.error(error, "voiceStateUpdate.js");
-      }
-    }
+  const [oldState, newState] = eventData;
+  if (!shouldDeleteEmptyOnDemandChannel(oldState, newState)) return;
+  try {
+    oldState.channel.delete();
+  } catch (error) {
+    botClient.logger.error(error, "voiceStateUpdate.js");
   }
-
 };

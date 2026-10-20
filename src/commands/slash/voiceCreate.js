@@ -1,8 +1,12 @@
 const {
   SlashCommandBuilder,
   ChannelType,
-  PermissionsBitField,
+  MessageFlags,
 } = require("discord.js");
+const {
+  findOnDemandCategory,
+  resolveOnDemandParent,
+} = require("../../util/onDemandVoice");
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -17,14 +21,9 @@ module.exports = {
   async execute(interaction) {
     try {
       const name = interaction.options.getString("name");
-      const guildCategory = "on-demand voice";
       interaction.client.logger.info(`trying to create voice channel ${name} `);
 
-      const category = interaction.guild.channels.cache.find(
-        (c) =>
-          c.name.toLowerCase() == `${guildCategory}` &&
-          c.type == ChannelType.GuildCategory
-      );
+      const category = findOnDemandCategory(interaction.guild.channels.cache);
 
       interaction.client.logger.info(
         `trying to create voice channel ${name} in ${category?.name}[${category?.id}] `,
@@ -34,7 +33,7 @@ module.exports = {
       const channel = await interaction.guild.channels.create({
         name: name,
         type: ChannelType.GuildVoice,
-        parent: category || 454471197510598666,
+        parent: resolveOnDemandParent(interaction.guild.channels.cache),
       });
 
       interaction.client.logger.info(
@@ -44,7 +43,7 @@ module.exports = {
 
       await interaction.reply({
         content: `Created ${channel} - Click to hop in!`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     } catch (error) {
       interaction.client.logger.error(error, "voiceCreate.js");

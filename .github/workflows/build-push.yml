@@ -1,0 +1,13 @@
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  build-and-push:
+    uses: ./.github/workflows/_docker-build-push.yml
+    secrets:
+      REGISTRY_USERNAME: ${{ secrets.REGISTRY_USERNAME }}
+      REGISTRY_TOKEN: ${{ secrets.REGISTRY_TOKEN }}
