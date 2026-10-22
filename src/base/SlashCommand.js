@@ -13,6 +13,7 @@ class SlashCommand {
 
   // Slash and autocomplete. Game Bot also sends autocomplete through execute();
   // override autocomplete() when the two paths should differ.
+  // `conf.permLevel` is enforced by the interaction router (User / Moderator / …).
   async execute(_interaction) {}
 
   async autocomplete(interaction) {

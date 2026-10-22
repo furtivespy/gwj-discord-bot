@@ -1,119 +1,24 @@
-import { describe, expect, test } from "bun:test";
-import fs from "fs";
-import path from "path";
+const { afterAll, describe, expect, test } = require("bun:test");
+const fs = require("fs");
+const os = require("os");
+const path = require("path");
+const BunEnmap = require("../src/db/BunEnmap.js");
+const {
+  DEFAULT_SETTINGS,
+  getSettings,
+  writeSettings,
+} = require("../src/util/settings.js");
+const { memoryStore } = require("./helpers/memoryStore.js");
 
-const SETTINGS_MODULE_PATH = path.join(import.meta.dir, "../src/util/settings.js");
-
-// FUR-111 / PR #3 owns src/util/settings.js. Until that lands, this file
-// inlines that module's merge helpers (resolveGuildId, storedDefaults null
-// repair, drop keys that match defaults) so these tests assert the same
-// contract. When the real module exists, the tests call it instead.
-const FALLBACK_DEFAULT_SETTINGS = {
-  modRole: "Moderator",
-  adminRole: "Administrator",
-  systemNotice: "true",
-};
-
-function fallbackResolveDefaults(defaultSettings = FALLBACK_DEFAULT_SETTINGS) {
-  return { ...FALLBACK_DEFAULT_SETTINGS, ...(defaultSettings || {}) };
-}
-
-function isPlainObject(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function fallbackResolveGuildId(guild) {
-  if (guild == null || guild === "") return null;
-  if (typeof guild === "object") {
-    const id = guild.id ?? guild.guildId;
-    return id ? String(id) : null;
-  }
-  return String(guild);
-}
-
-function storedObject(store, key) {
-  const value = store.get(key);
-  return isPlainObject(value) ? value : null;
-}
-
-function storedDefaults(store, defaultSettings) {
-  const fallback = fallbackResolveDefaults(defaultSettings);
-  const existing = storedObject(store, "default");
-  if (!existing) {
-    store.set("default", fallback);
-    return fallback;
-  }
-  return { ...fallback, ...existing };
-}
-
-function fallbackGetSettings(store, defaultSettings, guild) {
-  const defaults = storedDefaults(store, defaultSettings);
-  const guildId = fallbackResolveGuildId(guild);
-  if (!guildId) return { ...defaults };
-  const guildConf = storedObject(store, guildId) || {};
-  return { ...defaults, ...guildConf };
-}
-
-function fallbackWriteSettings(store, id, newSettings) {
-  const guildId = fallbackResolveGuildId(id);
-  if (!guildId) return {};
-  const defaults = storedDefaults(store);
-  let settings = storedObject(store, guildId) || {};
-  settings = { ...settings };
-  for (const key in newSettings) {
-    if (defaults[key] !== newSettings[key]) {
-      settings[key] = newSettings[key];
-    } else {
-      delete settings[key];
-    }
-  }
-  store.set(guildId, settings);
-  return settings;
-}
-
-const settingsModule = fs.existsSync(SETTINGS_MODULE_PATH)
-  ? require(SETTINGS_MODULE_PATH)
-  : null;
-
-const DEFAULT_SETTINGS =
-  settingsModule?.DEFAULT_SETTINGS ?? FALLBACK_DEFAULT_SETTINGS;
-const getSettings = settingsModule?.getSettings ?? fallbackGetSettings;
-const writeSettings = settingsModule?.writeSettings ?? fallbackWriteSettings;
-
-function memoryStore(initial = {}) {
-  const data = new Map(Object.entries(initial));
-  return {
-    get: (key) => data.get(String(key)),
-    set(key, value) {
-      data.set(String(key), value);
-      return this;
-    },
-    has: (key) => data.has(String(key)),
-    ensure(key, defaultValue) {
-      const stringKey = String(key);
-      if (!data.has(stringKey)) {
-        const value =
-          typeof defaultValue === "function"
-            ? defaultValue()
-            : { ...defaultValue };
-        data.set(stringKey, value);
-      }
-      return data.get(stringKey);
-    },
-    data,
-  };
-}
-
-describe("settings merge contract", () => {
-  test("uses src/util/settings.js when FUR-111 has landed, otherwise the inlined PR #3 helpers", () => {
-    if (settingsModule) {
-      expect(typeof settingsModule.getSettings).toBe("function");
-      expect(typeof settingsModule.writeSettings).toBe("function");
-      expect(typeof settingsModule.resolveGuildId).toBe("function");
-      expect(settingsModule.DEFAULT_SETTINGS).toEqual(DEFAULT_SETTINGS);
-    } else {
-      expect(fs.existsSync(SETTINGS_MODULE_PATH)).toBe(false);
-    }
+describe("settings merge", () => {
+  test("uses the SQLite settings module from main", () => {
+    expect(typeof getSettings).toBe("function");
+    expect(typeof writeSettings).toBe("function");
+    expect(DEFAULT_SETTINGS).toEqual({
+      modRole: "Moderator",
+      adminRole: "Administrator",
+      systemNotice: "true",
+    });
   });
 
   test("returns defaults when there is no guild or no override", () => {
@@ -145,7 +50,7 @@ describe("settings merge contract", () => {
 
     expect(store.get("guild-1")).toEqual({ adminRole: "Admins" });
     expect(getSettings(store, DEFAULT_SETTINGS, { id: "guild-1" }).modRole).toBe(
-      DEFAULT_SETTINGS.modRole
+      "Moderator"
     );
   });
 
@@ -176,5 +81,148 @@ describe("settings merge contract", () => {
       modRole: "Mods",
     });
     expect(store.get("default")).toEqual(DEFAULT_SETTINGS);
+  });
+});
+
+describe("BunEnmap persistence", () => {
+  const dataDir = fs.mkdtempSync(path.join(os.tmpdir(), "stancy-settings-"));
+  const poisonDir = fs.mkdtempSync(path.join(os.tmpdir(), "stancy-poison-"));
+
+  afterAll(() => {
+    fs.rmSync(dataDir, { recursive: true, force: true });
+    fs.rmSync(poisonDir, { recursive: true, force: true });
+  });
+
+  test("survives close and reopen on the same data dir", () => {
+    const first = new BunEnmap({
+      name: "settings",
+      cloneLevel: "deep",
+      dataDir,
+    });
+    first.ensure("default", DEFAULT_SETTINGS);
+    writeSettings(first, "guild-1", { modRole: "Night Watch" });
+    first.close();
+
+    const second = new BunEnmap({
+      name: "settings",
+      cloneLevel: "deep",
+      dataDir,
+    });
+    expect(getSettings(second, DEFAULT_SETTINGS, { id: "guild-1" })).toEqual({
+      ...DEFAULT_SETTINGS,
+      modRole: "Night Watch",
+    });
+    second.close();
+  });
+
+  test("deep clone on set so later mutation does not dirty the store", () => {
+    const store = new BunEnmap({
+      name: "settings",
+      cloneLevel: "deep",
+      dataDir,
+    });
+    const value = { modRole: "Staff" };
+    store.set("guild-1", value);
+    value.modRole = "Mutated";
+    expect(store.get("guild-1").modRole).toBe("Staff");
+    store.close();
+  });
+
+  test("skips unreadable rows instead of caching null", () => {
+    const { Database } = require("bun:sqlite");
+    const db = new Database(path.join(poisonDir, "settings.sqlite"), { create: true });
+    db.exec(`
+      CREATE TABLE enmap_store (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
+    db.query("INSERT INTO enmap_store (key, value) VALUES (?, ?)").run("default", "{");
+    db.query("INSERT INTO enmap_store (key, value) VALUES (?, ?)").run("poison", "null");
+    db.query("INSERT INTO enmap_store (key, value) VALUES (?, ?)").run(
+      "guild-1",
+      JSON.stringify({ modRole: "Mods" })
+    );
+    db.close();
+
+    const store = new BunEnmap({
+      name: "settings",
+      cloneLevel: "deep",
+      dataDir: poisonDir,
+    });
+    expect(store.has("default")).toBe(false);
+    expect(store.has("poison")).toBe(false);
+    expect(getSettings(store, DEFAULT_SETTINGS, { id: "guild-1" })).toEqual({
+      ...DEFAULT_SETTINGS,
+      modRole: "Mods",
+    });
+    store.close();
+  });
+
+  test("does not cache JSON null so ensure can restore defaults", () => {
+    const nullDir = fs.mkdtempSync(path.join(os.tmpdir(), "stancy-null-"));
+    const { Database } = require("bun:sqlite");
+    const db = new Database(path.join(nullDir, "settings.sqlite"), { create: true });
+    db.exec(`
+      CREATE TABLE enmap_store (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
+    db.query("INSERT INTO enmap_store (key, value) VALUES (?, ?)").run("default", "null");
+    db.close();
+
+    const store = new BunEnmap({
+      name: "settings",
+      cloneLevel: "deep",
+      dataDir: nullDir,
+    });
+    expect(store.has("default")).toBe(false);
+    expect(getSettings(store, DEFAULT_SETTINGS).modRole).toBe("Moderator");
+    store.close();
+    fs.rmSync(nullDir, { recursive: true, force: true });
+  });
+
+  test("does not Function-eval or cache legacy non-JSON values", () => {
+    const evalDir = fs.mkdtempSync(path.join(os.tmpdir(), "stancy-eval-"));
+    const { Database } = require("bun:sqlite");
+    const db = new Database(path.join(evalDir, "settings.sqlite"), { create: true });
+    db.exec(`
+      CREATE TABLE enmap_store (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
+    db.query("INSERT INTO enmap_store (key, value) VALUES (?, ?)").run(
+      "default",
+      "undefined"
+    );
+    db.close();
+
+    const store = new BunEnmap({
+      name: "settings",
+      cloneLevel: "deep",
+      dataDir: evalDir,
+    });
+    expect(store.has("default")).toBe(false);
+    expect(getSettings(store, DEFAULT_SETTINGS).modRole).toBe("Moderator");
+    store.close();
+    fs.rmSync(evalDir, { recursive: true, force: true });
+  });
+
+  test("guild.guildId and empty ids work against the SQLite store", () => {
+    const store = new BunEnmap({
+      name: "settings",
+      cloneLevel: "deep",
+      dataDir,
+    });
+    store.ensure("default", DEFAULT_SETTINGS);
+    writeSettings(store, "guild-1", { modRole: "Night Watch" });
+    expect(getSettings(store, DEFAULT_SETTINGS, { guildId: "guild-1" }).modRole).toBe(
+      "Night Watch"
+    );
+    expect(writeSettings(store, "", { modRole: "Mods" })).toEqual({});
+    expect(store.has("")).toBe(false);
+    store.close();
   });
 });

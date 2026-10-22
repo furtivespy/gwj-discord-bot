@@ -20,9 +20,12 @@ Required config keys: `token`, `clientId`, `environment`.
 Optional:
 
 * `bugsnagKey` (config) — when set, `error` logs are reported to Bugsnag. When unset, blank, or the `config.json.sample` placeholder `abc123`, the logger stays on the console only (Game Bot's `BugsnagLogger` with a console fallback).
+* `defaultSettings` — per-server defaults (`modRole`, `adminRole`, `systemNotice`) merged with guild overrides stored in SQLite
+* `botOwnerId` — Discord user id treated as Bot Owner for permission checks. If unset, the Discord application owner (fetched on ready) is used.
+* `STANCY_DATA_DIR` (env) — local directory for SQLite files (defaults to `./data`). In a container this is always `/data`.
 * `DEV_GUILD_ID` (env) or `devGuildId` (config) — register slash commands to this guild instead of globally. Instant updates while developing. If `environment` is `development` and neither is set, Stancy still uses the historical GWJ test guild `545109131330191371` so existing deploys keep working.
 * `OTEL_EXPORTER_OTLP_ENDPOINT` (env) — optional OpenTelemetry. Tracing is off unless this endpoint is set. Same shape as Game Bot's `tracing.js`, but gated on an OTLP URL instead of a Honeycomb API key.
-* `OTEL_SERVICE_NAME` (env) — defaults to `stancy-bot` (passed into the OpenTelemetry SDK as the service name / resource, not only logged). SIGTERM/SIGINT flush-and-exit like Game Bot **only when tracing is enabled**. When the endpoint is unset, those signals are left alone so FUR-111 store close can own process lifetime. If both are on, call `shutdownTracing()` from graceful shutdown before exiting.
+* `OTEL_SERVICE_NAME` (env) — defaults to `stancy-bot` (passed into the OpenTelemetry SDK as the service name / resource, not only logged). SIGTERM/SIGINT close SQLite stores, then flush traces when tracing is enabled, then exit. Tracing does not install its own signal handlers, so store close always owns process lifetime.
 * `OTEL_EXPORTER_OTLP_HEADERS` (env) — comma-separated `key=value` headers for the exporter (for Honeycomb: `x-honeycomb-team=YOUR_API_KEY` and endpoint `https://api.honeycomb.io/v1/traces`).
 * `OTEL_DEBUG_SPANS` (env) — set to `true` to also print spans to the console.
 
@@ -34,6 +37,10 @@ Adding a `.js` file under `src/commands/slash` or `src/events` (including subfol
 * Events extend `src/base/Event.js`, set `eventType` from `src/base/EventTypes.js`, and implement `run(...)`.
 
 Buttons, select menus, and modals are routed to the command whose name is the `customId` prefix before `:`. Example: `ping:again` is handled by `/ping`. `/ping` includes a sample **Again** button that proves this path (the same prefix routing a drop "In" button will use).
+
+Slash commands declare `permLevel` (User, Moderator, Administrator, Server Owner, Bot Owner). The interaction router compares that to the member's highest matching level (mod/admin role names come from guild settings). A non-mod cannot run a Moderator command.
+
+`/settings` (Administrator) views and sets those guild keys. Overrides are stored in `{dataDir}/settings.sqlite` so they survive a container restart. `data/` is gitignored. SIGTERM/SIGINT close the SQLite handles (WAL checkpoint) before exit.
 
 ## Container deploy
 
@@ -52,8 +59,9 @@ This repo needs these GitHub secrets (same names as Game Bot):
 
 The image expects the same runtime config as the old Fly app:
 
-* Volume mounted at `/data`
+* Volume mounted at `/data` (config **and** SQLite settings)
 * `BOT_CONFIG` (defaults to `/data/config.json` in the image) — put `config.json` on that volume
+* `IS_IN_CONTAINER=true` (set in the image) — SQLite files go on `/data` so they survive restarts
 * Optional `DEV_GUILD_ID` — guild-scoped slash command registration (see above)
 * Optional `bugsnagKey` in that config file — errors go to Bugsnag when set
 * Optional `OTEL_EXPORTER_OTLP_ENDPOINT` (and the other `OTEL_*` vars above) — tracing stays off when unset
@@ -75,6 +83,7 @@ docker run -d --name stancy-bot \
 * Watches voiceStateUpdate event to see if channel in that "on-demand voice" category is empty
 * `/ping` - replies with Pong and an **Again** button (proves component routing)
 * `/status` - uptime, package version, and server count
+* `/settings` - administrators view or set `modRole`, `adminRole`, and `systemNotice` per server
 
 
 #### Come [join us on discord](https://discord.com/invite/HfYNSdP)!

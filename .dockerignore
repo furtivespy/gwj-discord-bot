@@ -53,6 +53,10 @@ typings/
 
 #sqlite data
 data/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.sqlite-shm
 
 #private config as json
 config.json

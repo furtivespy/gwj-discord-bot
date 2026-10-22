@@ -1,9 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { ChannelType, MessageFlags } from "discord.js";
 import Ping from "../src/commands/slash/ping.js";
+import Settings from "../src/commands/slash/settings.js";
 import Status from "../src/commands/slash/status.js";
 import VoiceCreate from "../src/commands/slash/voiceCreate.js";
 import { FALLBACK_PARENT_ID } from "../src/util/onDemandVoice.js";
+import { DEFAULT_SETTINGS, getSettings, writeSettings } from "../src/util/settings.js";
+import { memoryStore } from "./helpers/memoryStore.js";
 
 function silentLogger() {
   return {
@@ -32,20 +35,28 @@ describe("slash command modules", () => {
     const ping = new Ping(avatarClient());
     const status = new Status({ logger: silentLogger() });
     const voiceCreate = new VoiceCreate({ logger: silentLogger() });
+    const settings = new Settings({ logger: silentLogger() });
 
     expect(ping.data.name).toBe("ping");
     expect(ping.data.description).toBe("Replies with Pong!");
     expect(ping).toBeInstanceOf(Ping);
+    expect(ping.conf.permLevel).toBe("User");
 
     expect(status.data.name).toBe("status");
     expect(status.data.description).toBe(
       "Shows bot uptime, version, and server count"
     );
     expect(status).toBeInstanceOf(Status);
+    expect(status.conf.permLevel).toBe("User");
 
     expect(voiceCreate.data.name).toBe("voice-create");
     expect(voiceCreate.data.description).toBe("Creates a voice channel");
     expect(voiceCreate).toBeInstanceOf(VoiceCreate);
+    expect(voiceCreate.conf.permLevel).toBe("User");
+
+    expect(settings.data.name).toBe("settings");
+    expect(settings.conf.permLevel).toBe("Administrator");
+    expect(settings).toBeInstanceOf(Settings);
 
     const json = voiceCreate.data.toJSON();
     const nameOption = json.options.find((option) => option.name === "name");
@@ -153,5 +164,137 @@ describe("/voice-create", () => {
     });
 
     expect(create.calls[0].parent).toBe(FALLBACK_PARENT_ID);
+  });
+});
+
+function settingsClient() {
+  const store = memoryStore({ default: { ...DEFAULT_SETTINGS } });
+  return {
+    logger: silentLogger(),
+    settings: store,
+    getSettings(guild) {
+      return getSettings(store, DEFAULT_SETTINGS, guild);
+    },
+    writeSettings(id, next) {
+      return writeSettings(store, id, next);
+    },
+  };
+}
+
+describe("/settings", () => {
+  test("show lists merged guild settings", async () => {
+    const client = settingsClient();
+    client.writeSettings("guild-1", { modRole: "Mods" });
+    const command = new Settings(client);
+    const replies = [];
+
+    await command.execute({
+      guildId: "guild-1",
+      guild: { id: "guild-1" },
+      options: { getSubcommand: () => "show", getString: () => null },
+      reply: async (payload) => replies.push(payload),
+    });
+
+    expect(replies[0].content).toContain("modRole: `Mods`");
+    expect(replies[0].content).toContain("adminRole: `Administrator`");
+    expect(replies[0].flags).toBe(MessageFlags.Ephemeral);
+  });
+
+  test("set writes an override and get reads it back", async () => {
+    const client = settingsClient();
+    const command = new Settings(client);
+    const replies = [];
+
+    await command.execute({
+      guildId: "guild-1",
+      guild: { id: "guild-1" },
+      options: {
+        getSubcommand: () => "set",
+        getString: (name) => (name === "key" ? "modRole" : "Cool Mods"),
+      },
+      reply: async (payload) => replies.push(payload),
+    });
+    await command.execute({
+      guildId: "guild-1",
+      guild: { id: "guild-1" },
+      options: {
+        getSubcommand: () => "get",
+        getString: () => "modRole",
+      },
+      reply: async (payload) => replies.push(payload),
+    });
+
+    expect(client.getSettings({ id: "guild-1" }).modRole).toBe("Cool Mods");
+    expect(replies[0].content).toBe("modRole set to `Cool Mods`");
+    expect(replies[1].content).toBe("modRole is currently `Cool Mods`");
+  });
+
+  test("show uses guildId when guild is null", async () => {
+    const client = settingsClient();
+    client.writeSettings("guild-1", { modRole: "Mods" });
+    const command = new Settings(client);
+    const replies = [];
+
+    await command.execute({
+      guildId: "guild-1",
+      guild: null,
+      options: { getSubcommand: () => "show", getString: () => null },
+      reply: async (payload) => replies.push(payload),
+    });
+
+    expect(replies[0].content).toContain("modRole: `Mods`");
+  });
+
+  test("set uses guildId when interaction.guild is missing", async () => {
+    const client = settingsClient();
+    client.writeSettings("guild-1", { modRole: "Night Watch" });
+    const command = new Settings(client);
+    const replies = [];
+
+    await command.execute({
+      guildId: "guild-1",
+      guild: null,
+      options: {
+        getSubcommand: () => "set",
+        getString: (name) => (name === "key" ? "modRole" : "Night Watch"),
+      },
+      reply: async (payload) => replies.push(payload),
+    });
+
+    expect(client.getSettings("guild-1").modRole).toBe("Night Watch");
+    expect(replies[0].content).toBe("modRole already has that value.");
+
+    await command.execute({
+      guildId: "guild-1",
+      guild: null,
+      options: {
+        getSubcommand: () => "set",
+        getString: (name) => (name === "key" ? "modRole" : "Staff"),
+      },
+      reply: async (payload) => replies.push(payload),
+    });
+    expect(client.getSettings("guild-1").modRole).toBe("Staff");
+    expect(replies[1].content).toBe("modRole set to `Staff`");
+  });
+
+  test("reset restores the default and drops the override", async () => {
+    const client = settingsClient();
+    client.writeSettings("guild-1", { adminRole: "Admins" });
+    const command = new Settings(client);
+    const replies = [];
+
+    await command.execute({
+      guildId: "guild-1",
+      guild: { id: "guild-1" },
+      options: {
+        getSubcommand: () => "reset",
+        getString: () => "adminRole",
+      },
+      reply: async (payload) => replies.push(payload),
+    });
+
+    expect(client.getSettings({ id: "guild-1" }).adminRole).toBe("Administrator");
+    expect(client.settings.get("guild-1").adminRole).toBeUndefined();
+    expect(replies[0].content).toContain("reset to default `Administrator`");
   });
 });

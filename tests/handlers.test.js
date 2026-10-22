@@ -47,6 +47,7 @@ describe("file discovery", () => {
     expect(commands.some((file) => file.endsWith("ping.js"))).toBe(true);
     expect(commands.some((file) => file.endsWith("status.js"))).toBe(true);
     expect(commands.some((file) => file.endsWith("voiceCreate.js"))).toBe(true);
+    expect(commands.some((file) => file.endsWith("settings.js"))).toBe(true);
     expect(events.some((file) => file.endsWith("ready.js"))).toBe(true);
     expect(events.some((file) => file.endsWith("interactionCreate.js"))).toBe(true);
     expect(events.some((file) => file.endsWith("voiceStateUpdate.js"))).toBe(true);
@@ -54,7 +55,7 @@ describe("file discovery", () => {
 });
 
 describe("slash command loader", () => {
-  test("auto-discovers ping, status, and voice-create without a Discord token", () => {
+  test("auto-discovers ping, settings, status, and voice-create without a Discord token", () => {
     const logs = [];
     const client = fakeClient();
     client.logger = {
@@ -71,8 +72,11 @@ describe("slash command loader", () => {
     expect(client.slash_commands.get("ping")?.data.name).toBe("ping");
     expect(client.slash_commands.get("status")?.data.name).toBe("status");
     expect(client.slash_commands.get("voice-create")?.data.name).toBe("voice-create");
+    expect(client.slash_commands.get("settings")?.data.name).toBe("settings");
+    expect(client.slash_commands.get("settings")?.conf.permLevel).toBe("Administrator");
     expect(commands.map((command) => command.data.name).sort()).toEqual([
       "ping",
+      "settings",
       "status",
       "voice-create",
     ]);
@@ -81,6 +85,9 @@ describe("slash command loader", () => {
     );
     expect(
       logs.some((line) => String(line).includes("Loading Slash Command: status."))
+    ).toBe(true);
+    expect(
+      logs.some((line) => String(line).includes("Loading Slash Command: settings."))
     ).toBe(true);
     expect(
       logs.some((line) => String(line).includes("Loading Slash Command: voice-create."))
@@ -124,6 +131,21 @@ describe("event handler", () => {
     expect(client.events.get("voiceStateUpdate")?.help.eventType).toBe(
       "voiceStateUpdate"
     );
+  });
+
+  test("ready fetches application into appInfo for Bot Owner checks", async () => {
+    const client = fakeClient();
+    loadEvents(client);
+    const appInfo = { owner: { id: "boss" } };
+    client.application = {
+      async fetch() {
+        return appInfo;
+      },
+    };
+
+    await client.registered.ready.handler();
+
+    expect(client.appInfo).toBe(appInfo);
   });
 
   test("interactionCreate routes a ping button through the loaded command", async () => {
@@ -170,15 +192,15 @@ describe("slash command registration", () => {
       rest,
       env: { DEV_GUILD_ID: "999" },
     });
-    expect(guild).toEqual({ scope: "guild", guildId: "999", count: 3 });
+    expect(guild).toEqual({ scope: "guild", guildId: "999", count: 4 });
 
     const global = await registerSlashCommands(client, commands, {
       rest,
       env: {},
     });
-    expect(global).toEqual({ scope: "global", count: 3 });
+    expect(global).toEqual({ scope: "global", count: 4 });
     expect(puts).toHaveLength(2);
-    expect(puts[0].payload.body).toHaveLength(3);
-    expect(puts[1].payload.body).toHaveLength(3);
+    expect(puts[0].payload.body).toHaveLength(4);
+    expect(puts[1].payload.body).toHaveLength(4);
   });
 });

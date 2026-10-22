@@ -1,4 +1,10 @@
 const { MessageFlags } = require("discord.js");
+const {
+  checkCommandPermission,
+  permissionContext,
+  shouldSendPermissionNotice,
+} = require("../util/permissions.js");
+const { guildFromInteraction } = require("../util/settings.js");
 
 const COMMAND_ERROR = "There was an error while executing this command!";
 const BUTTON_ERROR = "There was an error while processing this button!";
@@ -102,6 +108,54 @@ async function sendErrorReply(interaction, content) {
   });
 }
 
+function attachSettings(client, interaction) {
+  if (typeof client.getSettings !== "function") return null;
+  const settings = client.getSettings(guildFromInteraction(interaction));
+  interaction.settings = settings;
+  return settings;
+}
+
+function evaluatePermission(client, interaction, command) {
+  if (!client.permLevels || !client.levelCache) {
+    return { allowed: true };
+  }
+  const settings = interaction.settings || attachSettings(client, interaction) || {};
+  const context = permissionContext(interaction, settings);
+  context.client = client;
+  return checkCommandPermission({
+    permLevels: client.permLevels,
+    levelCache: client.levelCache,
+    context,
+    command,
+  });
+}
+
+async function denyPermission(interaction, kind, permission) {
+  if (kind === "autocomplete") {
+    if (typeof interaction.respond === "function") {
+      await interaction.respond([]);
+    }
+    return;
+  }
+  if (shouldSendPermissionNotice(interaction.settings)) {
+    await sendErrorReply(interaction, permission.message);
+    return;
+  }
+  // systemNotice "false" suppresses the denial text, but Discord still needs
+  // an ack within 3s or it shows "This interaction failed". Defer then delete
+  // so the user does not sit on "Bot is thinking…" for 15 minutes.
+  if (interaction.deferred || interaction.replied) return;
+  if (typeof interaction.deferReply !== "function") return;
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  if (typeof interaction.deleteReply === "function") {
+    try {
+      await interaction.deleteReply();
+    } catch {
+      // Already acked; leaving the deferred reply is better than an error edit.
+    }
+  }
+}
+
 async function dispatch(command, interaction, kind) {
   if (kind === "autocomplete") {
     const handler = command.autocomplete || command.execute;
@@ -128,11 +182,19 @@ async function routeInteraction(client, interaction) {
   const command = resolveCommand(client, interaction, kind);
   if (!command) return { handled: false };
 
+  attachSettings(client, interaction);
+
   const startedAt = Date.now();
   const inboundMs = startedAt - (interaction.createdTimestamp || startedAt);
   const label = timingLabel(interaction, kind);
 
   try {
+    const permission = evaluatePermission(client, interaction, command);
+    if (!permission.allowed) {
+      await denyPermission(interaction, kind, permission);
+      return { handled: true, denied: true, command, permission };
+    }
+
     await dispatch(command, interaction, kind);
     return { handled: true, command };
   } catch (error) {
@@ -154,6 +216,7 @@ module.exports = {
   findCommandByCustomId,
   commandNameFromCustomId,
   interactionKind,
+  evaluatePermission,
   COMMAND_ERROR,
   BUTTON_ERROR,
   SELECT_ERROR,

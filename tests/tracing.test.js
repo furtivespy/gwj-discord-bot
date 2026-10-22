@@ -203,11 +203,15 @@ describe("registerTracingShutdown", () => {
     restoreServiceName();
   });
 
-  test("bot.js starts tracing and only hooks shutdown when it is enabled", () => {
-    const src = fs.readFileSync(path.join(import.meta.dir, "../src/bot.js"), "utf8");
-    expect(src).toMatch(/startTracing\s*\(/);
-    expect(src).toMatch(/if\s*\(\s*tracing\.enabled\s*\)/);
-    expect(src).toContain("registerTracingShutdown()");
+  test("bot.js starts tracing; graceful shutdown flushes it so SQLite close owns SIGTERM", () => {
+    const botSrc = fs.readFileSync(path.join(import.meta.dir, "../src/bot.js"), "utf8");
+    const shutdownSrc = fs.readFileSync(
+      path.join(import.meta.dir, "../src/util/gracefulShutdown.js"),
+      "utf8"
+    );
+    expect(botSrc).toMatch(/startTracing\s*\(/);
+    expect(botSrc).not.toContain("registerTracingShutdown()");
+    expect(shutdownSrc).toMatch(/shutdownTracing/);
   });
 
   test("SIGTERM does not exit when tracing never started", async () => {
