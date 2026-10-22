@@ -8,14 +8,16 @@ Stancy Bot - A Voice Channel Creation Bot for Gamers With Jobs
 
 ## Local development
 
-* Rename `config.json.sample` to `config.json` and edit the values to your secrets
-* Rename `.env.sample` to `.env` and set `BOT_CONFIG` to the path of that config file
+* Copy `config.json.sample` to `config.json` and edit the values to your secrets
+* Copy `.env.example` to `.env` and set `BOT_CONFIG` to the path of that config file
 * Install [Bun](https://bun.sh) 1.3.14 (see `packageManager` in `package.json`)
 * Install package dependencies: `bun install`
 * Run the bot: `bun run start`
 * Run tests: `bun test`
 
 Required config keys: `token`, `clientId`, `environment`.
+
+Every process env var the code reads is listed in `.env.example`.
 
 Optional:
 
@@ -41,6 +43,73 @@ Buttons, select menus, and modals are routed to the command whose name is the `c
 Slash commands declare `permLevel` (User, Moderator, Administrator, Server Owner, Bot Owner). The interaction router compares that to the member's highest matching level (mod/admin role names come from guild settings). A non-mod cannot run a Moderator command.
 
 `/settings` (Administrator) views and sets those guild keys. Overrides are stored in `{dataDir}/settings.sqlite` so they survive a container restart. `data/` is gitignored. SIGTERM/SIGINT close the SQLite handles (WAL checkpoint) before exit.
+
+## Start a new bot from Stancy
+
+Stancy is a starter template. The on-demand voice feature is self-contained: delete one command and one event and the rest of the bot still answers `/ping`, `/status`, and `/settings`.
+
+1. **Copy the repo.** Clone it, fork it, or use it as a GitHub template.
+
+   ```
+   git clone https://github.com/furtivespy/gwj-discord-bot.git my-new-bot
+   cd my-new-bot
+   ```
+
+2. **Rename it.** Update at least:
+
+   * `package.json` — `name` and `description`
+   * `src/util/tracing.js` — `DEFAULT_SERVICE_NAME` (and `OTEL_SERVICE_NAME` in `.env`)
+   * `.github/workflows/_docker-build-push.yml` — `IMAGE_NAME`
+   * `AGENTS.md` — Linear project name / id / URL for the new bot
+   * This README — image name and deploy examples
+
+3. **Remove voice** (skip this if you want on-demand voice channels):
+
+   ```
+   rm src/commands/slash/voiceCreate.js src/events/voiceStateUpdate.js
+   ```
+
+   Optional cleanup after that:
+
+   ```
+   rm src/util/onDemandVoice.js
+   ```
+
+   You can also drop `GatewayIntentBits.GuildVoiceStates` from the `intents` list in `src/bot.js`. Loaders auto-discover files, so nothing else in `src/` imports those modules.
+
+4. **Set env and config.**
+
+   ```
+   cp config.json.sample config.json
+   cp .env.example .env
+   ```
+
+   In `config.json` set `token`, `clientId`, and `environment`. Optional: `bugsnagKey`, `botOwnerId`, `defaultSettings`.
+
+   In `.env` set `BOT_CONFIG` to that config file. Set `DEV_GUILD_ID` to **your** test guild. If `environment` is `development` and you leave `DEV_GUILD_ID` / `devGuildId` unset, commands still register to the historical GWJ guild `545109131330191371` — change `DEFAULT_DEV_GUILD_ID` in `src/handlers/slashcommands.js` or set `environment` to `production` for global registration.
+
+5. **Install, test, register commands.**
+
+   ```
+   bun install
+   bun test
+   bun run start
+   ```
+
+   Starting the bot registers slash commands (guild-scoped when `DEV_GUILD_ID` is set, otherwise global). Confirm `/ping`, `/status`, and `/settings` appear in Discord.
+
+6. **Deploy the container.** Put `config.json` on a volume mounted at `/data` (see **Container deploy** below). Build and push via GitHub Actions (`REGISTRY_USERNAME` / `REGISTRY_TOKEN` secrets) or:
+
+   ```
+   docker build -t your-registry/your-bot:latest .
+   docker run -d --name your-bot \
+     --restart unless-stopped \
+     -v /path/to/your-bot-data:/data \
+     -e BOT_CONFIG=/data/config.json \
+     your-registry/your-bot:latest
+   ```
+
+Coding agents: see `AGENTS.md` for layout, Linear project, and conventions.
 
 ## Container deploy
 

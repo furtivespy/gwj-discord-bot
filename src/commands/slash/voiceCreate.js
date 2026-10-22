@@ -9,6 +9,10 @@ const {
   resolveOnDemandParent,
 } = require("../../util/onDemandVoice");
 
+// Sample on-demand voice feature. Delete this file together with
+// src/events/voiceStateUpdate.js (and optionally src/util/onDemandVoice.js)
+// when cloning Stancy as a starter bot. Nothing else in src/ imports them.
+
 class VoiceCreate extends SlashCommand {
   constructor(client) {
     super(client, {

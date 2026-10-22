@@ -3,10 +3,19 @@ import { ChannelType, MessageFlags } from "discord.js";
 import Ping from "../src/commands/slash/ping.js";
 import Settings from "../src/commands/slash/settings.js";
 import Status from "../src/commands/slash/status.js";
-import VoiceCreate from "../src/commands/slash/voiceCreate.js";
-import { FALLBACK_PARENT_ID } from "../src/util/onDemandVoice.js";
 import { DEFAULT_SETTINGS, getSettings, writeSettings } from "../src/util/settings.js";
 import { memoryStore } from "./helpers/memoryStore.js";
+import {
+  hasVoiceCommand,
+  hasVoiceUtil,
+} from "./helpers/voiceFeature.js";
+
+const VoiceCreate = hasVoiceCommand()
+  ? (await import("../src/commands/slash/voiceCreate.js")).default
+  : null;
+const FALLBACK_PARENT_ID = hasVoiceUtil()
+  ? (await import("../src/util/onDemandVoice.js")).FALLBACK_PARENT_ID
+  : null;
 
 function silentLogger() {
   return {
@@ -34,7 +43,6 @@ describe("slash command modules", () => {
   test("load without a Discord token and expose slash metadata", () => {
     const ping = new Ping(avatarClient());
     const status = new Status({ logger: silentLogger() });
-    const voiceCreate = new VoiceCreate({ logger: silentLogger() });
     const settings = new Settings({ logger: silentLogger() });
 
     expect(ping.data.name).toBe("ping");
@@ -49,19 +57,22 @@ describe("slash command modules", () => {
     expect(status).toBeInstanceOf(Status);
     expect(status.conf.permLevel).toBe("User");
 
-    expect(voiceCreate.data.name).toBe("voice-create");
-    expect(voiceCreate.data.description).toBe("Creates a voice channel");
-    expect(voiceCreate).toBeInstanceOf(VoiceCreate);
-    expect(voiceCreate.conf.permLevel).toBe("User");
-
     expect(settings.data.name).toBe("settings");
     expect(settings.conf.permLevel).toBe("Administrator");
     expect(settings).toBeInstanceOf(Settings);
 
-    const json = voiceCreate.data.toJSON();
-    const nameOption = json.options.find((option) => option.name === "name");
-    expect(nameOption).toBeDefined();
-    expect(nameOption.required).toBe(true);
+    if (VoiceCreate) {
+      const voiceCreate = new VoiceCreate({ logger: silentLogger() });
+      expect(voiceCreate.data.name).toBe("voice-create");
+      expect(voiceCreate.data.description).toBe("Creates a voice channel");
+      expect(voiceCreate).toBeInstanceOf(VoiceCreate);
+      expect(voiceCreate.conf.permLevel).toBe("User");
+
+      const json = voiceCreate.data.toJSON();
+      const nameOption = json.options.find((option) => option.name === "name");
+      expect(nameOption).toBeDefined();
+      expect(nameOption.required).toBe(true);
+    }
   });
 });
 
@@ -102,7 +113,7 @@ describe("/ping", () => {
   });
 });
 
-describe("/voice-create", () => {
+describe.skipIf(!VoiceCreate)("/voice-create", () => {
   test("creates a GuildVoice channel under the on-demand category", async () => {
     const voiceCreate = new VoiceCreate({ logger: silentLogger() });
     const created = { id: "voice-1", toString: () => "<#voice-1>" };
