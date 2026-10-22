@@ -1,4 +1,5 @@
-require('dotenv').config();
+require("dotenv").config();
+require("./util/tracing").startTracing();
 const {
   Client,
   Collection,

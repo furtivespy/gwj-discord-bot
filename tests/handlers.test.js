@@ -45,6 +45,7 @@ describe("file discovery", () => {
     const events = listJsFiles(path.join(import.meta.dir, "../src/events"));
 
     expect(commands.some((file) => file.endsWith("ping.js"))).toBe(true);
+    expect(commands.some((file) => file.endsWith("status.js"))).toBe(true);
     expect(commands.some((file) => file.endsWith("voiceCreate.js"))).toBe(true);
     expect(events.some((file) => file.endsWith("ready.js"))).toBe(true);
     expect(events.some((file) => file.endsWith("interactionCreate.js"))).toBe(true);
@@ -53,7 +54,7 @@ describe("file discovery", () => {
 });
 
 describe("slash command loader", () => {
-  test("auto-discovers ping and voice-create without a Discord token", () => {
+  test("auto-discovers ping, status, and voice-create without a Discord token", () => {
     const logs = [];
     const client = fakeClient();
     client.logger = {
@@ -68,14 +69,19 @@ describe("slash command loader", () => {
       : loadSlashCommands(client, { register: false });
 
     expect(client.slash_commands.get("ping")?.data.name).toBe("ping");
+    expect(client.slash_commands.get("status")?.data.name).toBe("status");
     expect(client.slash_commands.get("voice-create")?.data.name).toBe("voice-create");
     expect(commands.map((command) => command.data.name).sort()).toEqual([
       "ping",
+      "status",
       "voice-create",
     ]);
     expect(logs.some((line) => String(line).includes("Loading Slash Command: ping."))).toBe(
       true
     );
+    expect(
+      logs.some((line) => String(line).includes("Loading Slash Command: status."))
+    ).toBe(true);
     expect(
       logs.some((line) => String(line).includes("Loading Slash Command: voice-create."))
     ).toBe(true);
@@ -164,15 +170,15 @@ describe("slash command registration", () => {
       rest,
       env: { DEV_GUILD_ID: "999" },
     });
-    expect(guild).toEqual({ scope: "guild", guildId: "999", count: 2 });
+    expect(guild).toEqual({ scope: "guild", guildId: "999", count: 3 });
 
     const global = await registerSlashCommands(client, commands, {
       rest,
       env: {},
     });
-    expect(global).toEqual({ scope: "global", count: 2 });
+    expect(global).toEqual({ scope: "global", count: 3 });
     expect(puts).toHaveLength(2);
-    expect(puts[0].payload.body).toHaveLength(2);
-    expect(puts[1].payload.body).toHaveLength(2);
+    expect(puts[0].payload.body).toHaveLength(3);
+    expect(puts[1].payload.body).toHaveLength(3);
   });
 });

@@ -1,6 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { ChannelType, MessageFlags } from "discord.js";
 import Ping from "../src/commands/slash/ping.js";
+import Status from "../src/commands/slash/status.js";
 import VoiceCreate from "../src/commands/slash/voiceCreate.js";
 import { FALLBACK_PARENT_ID } from "../src/util/onDemandVoice.js";
 
@@ -29,11 +30,18 @@ function avatarClient() {
 describe("slash command modules", () => {
   test("load without a Discord token and expose slash metadata", () => {
     const ping = new Ping(avatarClient());
+    const status = new Status({ logger: silentLogger() });
     const voiceCreate = new VoiceCreate({ logger: silentLogger() });
 
     expect(ping.data.name).toBe("ping");
     expect(ping.data.description).toBe("Replies with Pong!");
     expect(ping).toBeInstanceOf(Ping);
+
+    expect(status.data.name).toBe("status");
+    expect(status.data.description).toBe(
+      "Shows bot uptime, version, and server count"
+    );
+    expect(status).toBeInstanceOf(Status);
 
     expect(voiceCreate.data.name).toBe("voice-create");
     expect(voiceCreate.data.description).toBe("Creates a voice channel");
