@@ -53,9 +53,14 @@ class BugsnagLogger {
           `${timestamp}: ${chalk.black.bgGreen(type.toUpperCase())} ${content}`
         );
       }
+      case "time": {
+        return console.log(
+          `${timestamp}: ${chalk.black.bgCyan(type.toUpperCase())} ${content}`
+        );
+      }
       default:
         throw new TypeError(
-          "Logger type must be either warn, debug, log, ready, cmd or error."
+          "Logger type must be either warn, debug, log, ready, cmd, time or error."
         );
     }
   }
@@ -78,6 +83,10 @@ class BugsnagLogger {
 
   ready(content, location = "Unknown") {
     return this.log(content, "ready", location);
+  }
+
+  time(content, location = "Unknown") {
+    return this.log(content, "time", location);
   }
 
   info(content, location = "Unknown") {

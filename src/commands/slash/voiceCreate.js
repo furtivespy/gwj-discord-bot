@@ -3,21 +3,32 @@ const {
   ChannelType,
   MessageFlags,
 } = require("discord.js");
+const SlashCommand = require("../../base/SlashCommand.js");
 const {
   findOnDemandCategory,
   resolveOnDemandParent,
 } = require("../../util/onDemandVoice");
 
-module.exports = {
-  data: new SlashCommandBuilder()
-    .setName("voice-create")
-    .setDescription("Creates a voice channel")
-    .addStringOption((option) =>
-      option
-        .setName("name")
-        .setDescription("The name of the channel")
-        .setRequired(true)
-    ),
+class VoiceCreate extends SlashCommand {
+  constructor(client) {
+    super(client, {
+      name: "voice-create",
+      description: "Creates a voice channel",
+      usage: "/voice-create name:<channel name>",
+      enabled: true,
+      permLevel: "User",
+    });
+    this.data = new SlashCommandBuilder()
+      .setName(this.help.name)
+      .setDescription(this.help.description)
+      .addStringOption((option) =>
+        option
+          .setName("name")
+          .setDescription("The name of the channel")
+          .setRequired(true)
+      );
+  }
+
   async execute(interaction) {
     try {
       const name = interaction.options.getString("name");
@@ -48,5 +59,7 @@ module.exports = {
     } catch (error) {
       interaction.client.logger.error(error, "voiceCreate.js");
     }
-  },
-};
+  }
+}
+
+module.exports = VoiceCreate;
