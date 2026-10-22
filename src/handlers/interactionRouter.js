@@ -142,10 +142,17 @@ async function denyPermission(interaction, kind, permission) {
     return;
   }
   // systemNotice "false" suppresses the denial text, but Discord still needs
-  // an ack within 3s or it shows "This interaction failed".
+  // an ack within 3s or it shows "This interaction failed". Defer then delete
+  // so the user does not sit on "Bot is thinking…" for 15 minutes.
   if (interaction.deferred || interaction.replied) return;
-  if (typeof interaction.deferReply === "function") {
-    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  if (typeof interaction.deferReply !== "function") return;
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  if (typeof interaction.deleteReply === "function") {
+    try {
+      await interaction.deleteReply();
+    } catch {
+      // Already acked; leaving the deferred reply is better than an error edit.
+    }
   }
 }
 

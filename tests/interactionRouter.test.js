@@ -385,6 +385,7 @@ describe("interaction router", () => {
   test("acks denied slash interactions when systemNotice is false", async () => {
     const replies = [];
     const defers = [];
+    const deletes = [];
     const client = permissionClient({
       lock: {
         conf: { permLevel: "Moderator" },
@@ -402,12 +403,16 @@ describe("interaction router", () => {
         member: memberWithRoles(),
         reply: async (payload) => replies.push(payload),
         deferReply: async (payload) => defers.push(payload),
+        deleteReply: async () => {
+          deletes.push("deleted");
+        },
       })
     );
 
     expect(result.denied).toBe(true);
     expect(replies).toEqual([]);
     expect(defers).toEqual([{ flags: MessageFlags.Ephemeral }]);
+    expect(deletes).toEqual(["deleted"]);
   });
 
   test("loads guild settings from guildId when interaction.guild is missing", async () => {
