@@ -79,7 +79,11 @@ class BugsnagLogger {
       return;
     }
     if (type === "error") {
-      this.notify(content);
+      try {
+        this.notify(content);
+      } catch (err) {
+        this.write(err, "warn", "logger.notify");
+      }
     }
     return this.write(content, type, location);
   }

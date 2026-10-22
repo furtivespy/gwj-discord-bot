@@ -3,6 +3,7 @@ import {
   DEFAULT_SERVICE_NAME,
   parseOtelHeaders,
   resolveTracingConfig,
+  startTracing,
 } from "../src/util/tracing.js";
 
 describe("OpenTelemetry config", () => {
@@ -15,6 +16,8 @@ describe("OpenTelemetry config", () => {
         HONEYCOMB_API_KEY: "not-enough",
       })
     ).toBeNull();
+    expect(startTracing({})).toEqual({ enabled: false });
+    expect(startTracing({})).toEqual({ enabled: false });
   });
 
   test("enables when OTEL_EXPORTER_OTLP_ENDPOINT is set", () => {

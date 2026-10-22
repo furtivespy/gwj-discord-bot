@@ -31,25 +31,28 @@ function resolveTracingConfig(env = process.env) {
   };
 }
 
-let started = false;
 let sdk = null;
-
-function isTracingEnabled(env = process.env) {
-  return resolveTracingConfig(env) !== null;
-}
+let warnedDisabled = false;
+let signalsRegistered = false;
 
 function startTracing(env = process.env) {
-  if (started) {
-    return { enabled: Boolean(sdk), reused: true };
+  if (sdk) {
+    return { enabled: true, reused: true };
   }
 
   const config = resolveTracingConfig(env);
   if (!config) {
-    started = true;
-    console.warn(
-      "[tracing] OTEL_EXPORTER_OTLP_ENDPOINT not set — OpenTelemetry tracing disabled"
-    );
+    if (!warnedDisabled) {
+      warnedDisabled = true;
+      console.warn(
+        "[tracing] OTEL_EXPORTER_OTLP_ENDPOINT not set — OpenTelemetry tracing disabled"
+      );
+    }
     return { enabled: false };
+  }
+
+  if (!process.env.OTEL_SERVICE_NAME) {
+    process.env.OTEL_SERVICE_NAME = config.serviceName;
   }
 
   const { NodeSDK } = require("@opentelemetry/sdk-node");
@@ -87,7 +90,7 @@ function startTracing(env = process.env) {
   });
 
   sdk.start();
-  started = true;
+  registerShutdownSignals();
   patchDiscordRest(trace, SpanStatusCode);
   console.log(
     `[tracing] OTel started — service=${config.serviceName} → ${config.endpoint}`
@@ -95,15 +98,30 @@ function startTracing(env = process.env) {
   return { enabled: true, config };
 }
 
+function registerShutdownSignals() {
+  if (signalsRegistered) return;
+  signalsRegistered = true;
+  const onSignal = (signal) => {
+    console.warn(`[tracing] Received ${signal}, flushing spans…`);
+    Promise.resolve(shutdownTracing()).finally(() => process.exit(0));
+  };
+  process.once("SIGTERM", onSignal);
+  process.once("SIGINT", onSignal);
+}
+
 function patchDiscordRest(trace, SpanStatusCode) {
   try {
     const { REST } = require("@discordjs/rest");
     const discordRestTracer = trace.getTracer("stancy-bot:rest");
     const originalQueueRequest = REST.prototype.queueRequest;
-    REST.prototype.queueRequest = async function patchedQueueRequest(options) {
+    REST.prototype.queueRequest = async function patchedQueueRequest(options = {}) {
       const method = options.method ?? "UNKNOWN";
-      const routeData = REST.generateRouteData(options.fullRoute, method);
-      const route = routeData.bucketRoute ?? options.fullRoute ?? "unknown";
+      const fullRoute = options.fullRoute;
+      const routeData =
+        typeof REST.generateRouteData === "function" && fullRoute
+          ? REST.generateRouteData(fullRoute, method)
+          : {};
+      const route = routeData.bucketRoute ?? fullRoute ?? "unknown";
 
       if (method === "GET" && route === "/applications/@me") {
         return originalQueueRequest.apply(this, arguments);
@@ -138,13 +156,11 @@ async function shutdownTracing() {
   if (!sdk) return;
   const active = sdk;
   sdk = null;
-  started = false;
   await active.shutdown();
 }
 
 module.exports = {
   DEFAULT_SERVICE_NAME,
-  isTracingEnabled,
   parseOtelHeaders,
   resolveTracingConfig,
   startTracing,

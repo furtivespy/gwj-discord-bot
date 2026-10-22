@@ -22,24 +22,59 @@ describe("BugsnagLogger", () => {
       },
     };
 
-    const logger = createLogger({
+    const blank = createLogger({
       apiKey: "   ",
       releaseStage: "production",
       write,
       Bugsnag,
     });
+    const missing = createLogger({
+      releaseStage: "production",
+      write,
+    });
 
     const error = new Error("boom");
-    logger.error(error, "tests");
-    logger.info("hello", "tests");
+    blank.error(error, "tests");
+    blank.info("hello", "tests");
 
-    expect(logger.bugsnagEnabled).toBe(false);
-    expect(logger.bugsnagClient).toBeNull();
+    expect(blank.bugsnagEnabled).toBe(false);
+    expect(blank.bugsnagClient).toBeNull();
+    expect(missing.bugsnagEnabled).toBe(false);
+    expect(missing.bugsnagClient).toBeNull();
     expect(started).toEqual([]);
     expect(write.lines).toEqual([
       { content: error, type: "error", location: "tests" },
       { content: "hello", type: "log", location: "tests" },
     ]);
+  });
+
+  test("still writes to the console if Bugsnag.notify throws", () => {
+    const write = capturingWrite();
+    const logger = createLogger({
+      apiKey: "abc123",
+      write,
+      Bugsnag: {
+        start() {
+          return {
+            notify() {
+              throw new Error("bugsnag down");
+            },
+          };
+        },
+      },
+    });
+
+    logger.error("still logged", "tests");
+    expect(write.lines.map((line) => line.content)).toEqual([
+      expect.any(Error),
+      "still logged",
+    ]);
+    expect(write.lines[0].type).toBe("warn");
+    expect(write.lines[1]).toEqual({
+      content: "still logged",
+      type: "error",
+      location: "tests",
+    });
   });
 
   test("notifies Bugsnag on error when a key is configured", () => {

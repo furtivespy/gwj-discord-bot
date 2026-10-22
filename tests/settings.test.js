@@ -4,9 +4,9 @@ import path from "path";
 
 const SETTINGS_MODULE_PATH = path.join(import.meta.dir, "../src/util/settings.js");
 
-// FUR-111 (PR #3) owns the real settings store. Until that lands on main,
-// these tests exercise the same merge contract that PR #3 implements so they
-// switch over automatically once `src/util/settings.js` exists.
+// FUR-111 (PR #3) owns src/util/settings.js. Until that lands, this file
+// inlines that module's merge helpers so the tests assert the real contract
+// (null default repair, guild.guildId, empty id) rather than a looser stand-in.
 const FALLBACK_DEFAULT_SETTINGS = {
   modRole: "Moderator",
   adminRole: "Administrator",
@@ -17,20 +17,48 @@ function fallbackResolveDefaults(defaultSettings = FALLBACK_DEFAULT_SETTINGS) {
   return { ...FALLBACK_DEFAULT_SETTINGS, ...(defaultSettings || {}) };
 }
 
+function isPlainObject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function fallbackResolveGuildId(guild) {
+  if (guild == null || guild === "") return null;
+  if (typeof guild === "object") {
+    const id = guild.id ?? guild.guildId;
+    return id ? String(id) : null;
+  }
+  return String(guild);
+}
+
+function storedObject(store, key) {
+  const value = store.get(key);
+  return isPlainObject(value) ? value : null;
+}
+
+function storedDefaults(store, defaultSettings) {
+  const fallback = fallbackResolveDefaults(defaultSettings);
+  const existing = storedObject(store, "default");
+  if (!existing) {
+    store.set("default", fallback);
+    return fallback;
+  }
+  return { ...fallback, ...existing };
+}
+
 function fallbackGetSettings(store, defaultSettings, guild) {
-  const defaults = fallbackResolveDefaults(defaultSettings);
-  store.ensure("default", defaults);
-  if (!guild) return store.get("default");
-  const guildId = typeof guild === "object" ? guild.id : guild;
-  const guildConf = store.get(guildId) || {};
-  return { ...store.get("default"), ...guildConf };
+  const defaults = storedDefaults(store, defaultSettings);
+  const guildId = fallbackResolveGuildId(guild);
+  if (!guildId) return { ...defaults };
+  const guildConf = storedObject(store, guildId) || {};
+  return { ...defaults, ...guildConf };
 }
 
 function fallbackWriteSettings(store, id, newSettings) {
-  const defaults = store.get("default") || fallbackResolveDefaults();
-  let settings = store.get(id);
-  if (typeof settings !== "object" || settings === null) settings = {};
-  else settings = { ...settings };
+  const guildId = fallbackResolveGuildId(id);
+  if (!guildId) return {};
+  const defaults = storedDefaults(store);
+  let settings = storedObject(store, guildId) || {};
+  settings = { ...settings };
   for (const key in newSettings) {
     if (defaults[key] !== newSettings[key]) {
       settings[key] = newSettings[key];
@@ -38,7 +66,7 @@ function fallbackWriteSettings(store, id, newSettings) {
       delete settings[key];
     }
   }
-  store.set(id, settings);
+  store.set(guildId, settings);
   return settings;
 }
 
@@ -117,5 +145,21 @@ describe("settings merge contract", () => {
     expect(getSettings(store, DEFAULT_SETTINGS, { id: "guild-1" }).modRole).toBe(
       DEFAULT_SETTINGS.modRole
     );
+  });
+
+  test("repairs a null default row and accepts guild.guildId", () => {
+    const store = memoryStore({ default: null });
+    expect(getSettings(store, DEFAULT_SETTINGS, { guildId: "guild-1" })).toEqual(
+      DEFAULT_SETTINGS
+    );
+    expect(store.get("default")).toEqual(DEFAULT_SETTINGS);
+  });
+
+  test("writeSettings ignores empty ids and does not store them", () => {
+    const store = memoryStore({ default: { ...DEFAULT_SETTINGS } });
+    expect(writeSettings(store, "", { modRole: "Mods" })).toEqual({});
+    expect(writeSettings(store, { id: "" }, { modRole: "Mods" })).toEqual({});
+    expect(store.has("")).toBe(false);
+    expect(getSettings(store, DEFAULT_SETTINGS, "")).toEqual(DEFAULT_SETTINGS);
   });
 });

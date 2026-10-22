@@ -28,6 +28,12 @@ function buildStatusLines({
   ].join("\n");
 }
 
+function resolveStatusClient(commandClient, interaction) {
+  if (commandClient?.guilds?.cache) return commandClient;
+  if (interaction?.client?.guilds?.cache) return interaction.client;
+  return commandClient || interaction?.client;
+}
+
 class Status extends SlashCommand {
   constructor(client) {
     super(client, {
@@ -43,11 +49,11 @@ class Status extends SlashCommand {
   }
 
   async execute(interaction) {
-    const client = this.client || interaction.client;
+    const client = resolveStatusClient(this.client, interaction);
     const content = buildStatusLines({
       version,
       uptimeSeconds: process.uptime(),
-      serverCount: client.guilds?.cache?.size ?? 0,
+      serverCount: client?.guilds?.cache?.size ?? 0,
     });
 
     await interaction.reply({
@@ -59,5 +65,6 @@ class Status extends SlashCommand {
 
 Status.formatUptime = formatUptime;
 Status.buildStatusLines = buildStatusLines;
+Status.resolveStatusClient = resolveStatusClient;
 Status.version = version;
 module.exports = Status;
