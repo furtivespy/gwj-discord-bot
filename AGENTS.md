@@ -61,6 +61,6 @@ Guild overrides live in `{dataDir}/settings.sqlite` (`./data` locally, `/data` i
 
 - Runtime is **Bun 1.3.14** (`packageManager` in `package.json`). Do not switch to Node or npm without an explicit ask.
 - Config is JSON (`BOT_CONFIG` / `config.json.sample`), not `config.js`. Token, `clientId`, and `bugsnagKey` are config keys, not env vars.
-- `DEV_GUILD_ID` (env) or `devGuildId` (config) registers guild-scoped slash commands. If `environment` is `development` and neither is set, the historical GWJ test guild is used — clones must set one of those or change `DEFAULT_DEV_GUILD_ID` in `src/handlers/slashcommands.js`.
+- `DEV_GUILD_ID` (env) or `devGuildId` (config) registers guild-scoped slash commands. If neither is set, commands register globally (development logs a warning). Do not bake a guild id into source.
 - Logger is console-only unless `bugsnagKey` is a real key (not blank / `abc123`). Tracing is off unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
 - SIGTERM/SIGINT close SQLite stores, then flush traces when tracing is enabled. Tracing must not install its own signal handlers.

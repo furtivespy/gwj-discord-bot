@@ -5,7 +5,6 @@ import loadEvents from "../src/handlers/events.js";
 import loadSlashCommands, {
   resolveDevGuildId,
   registerSlashCommands,
-  DEFAULT_DEV_GUILD_ID,
 } from "../src/handlers/slashcommands.js";
 import path from "path";
 import {
@@ -105,11 +104,9 @@ describe("slash command loader", () => {
     }
   });
 
-  test("resolveDevGuildId prefers env, then config, then the development fallback", () => {
+  test("resolveDevGuildId prefers env, then config, and has no hardcoded guild", () => {
     expect(resolveDevGuildId({ environment: "production" }, {})).toBeNull();
-    expect(
-      resolveDevGuildId({ environment: "development" }, {})
-    ).toBe(DEFAULT_DEV_GUILD_ID);
+    expect(resolveDevGuildId({ environment: "development" }, {})).toBeNull();
     expect(
       resolveDevGuildId(
         { environment: "production", devGuildId: "111" },
@@ -121,7 +118,7 @@ describe("slash command loader", () => {
     ).toBe("111");
     expect(
       resolveDevGuildId({ environment: "development", devGuildId: "   " }, { DEV_GUILD_ID: "" })
-    ).toBe(DEFAULT_DEV_GUILD_ID);
+    ).toBeNull();
   });
 });
 
@@ -223,5 +220,24 @@ describe("slash command registration", () => {
     expect(puts[0].payload.body.map((cmd) => cmd.name)).toEqual(
       expect.arrayContaining(["ping", "settings", "status"])
     );
+  });
+
+  test("warns in development when registering globally because no guild id is set", async () => {
+    const warnings = [];
+    const client = fakeClient();
+    client.config = { token: "t", clientId: "client-1", environment: "development" };
+    client.logger = {
+      ...silentLogger(),
+      warn(content) {
+        warnings.push(content);
+      },
+    };
+    const commands = loadSlashCommands.loadSlashCommands(client);
+    const result = await registerSlashCommands(client, commands, {
+      rest: { async put() {} },
+      env: {},
+    });
+    expect(result.scope).toBe("global");
+    expect(warnings.some((line) => String(line).includes("DEV_GUILD_ID"))).toBe(true);
   });
 });

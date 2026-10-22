@@ -25,7 +25,7 @@ Optional:
 * `defaultSettings` — per-server defaults (`modRole`, `adminRole`, `systemNotice`) merged with guild overrides stored in SQLite
 * `botOwnerId` — Discord user id treated as Bot Owner for permission checks. If unset, the Discord application owner (fetched on ready) is used.
 * `STANCY_DATA_DIR` (env) — local directory for SQLite files (defaults to `./data`). In a container this is always `/data`.
-* `DEV_GUILD_ID` (env) or `devGuildId` (config) — register slash commands to this guild instead of globally. Instant updates while developing. If `environment` is `development` and neither is set, Stancy still uses the historical GWJ test guild `545109131330191371` so existing deploys keep working.
+* `DEV_GUILD_ID` (env) or `devGuildId` (config) — register slash commands to this guild instead of globally. Instant updates while developing. If neither is set, commands register globally (and development logs a warning). There is no hardcoded fallback guild.
 * `OTEL_EXPORTER_OTLP_ENDPOINT` (env) — optional OpenTelemetry. Tracing is off unless this endpoint is set. Same shape as Game Bot's `tracing.js`, but gated on an OTLP URL instead of a Honeycomb API key.
 * `OTEL_SERVICE_NAME` (env) — defaults to `stancy-bot` (passed into the OpenTelemetry SDK as the service name / resource, not only logged). SIGTERM/SIGINT close SQLite stores, then flush traces when tracing is enabled, then exit. Tracing does not install its own signal handlers, so store close always owns process lifetime.
 * `OTEL_EXPORTER_OTLP_HEADERS` (env) — comma-separated `key=value` headers for the exporter (for Honeycomb: `x-honeycomb-team=YOUR_API_KEY` and endpoint `https://api.honeycomb.io/v1/traces`).
@@ -60,9 +60,8 @@ Stancy is a starter template. The on-demand voice feature is self-contained: del
    * `package.json` — `name` and `description`
    * `src/util/tracing.js` — `DEFAULT_SERVICE_NAME` (and `OTEL_SERVICE_NAME` in `.env`)
    * `.github/workflows/_docker-build-push.yml` — `IMAGE_NAME`
-   * `AGENTS.md` — Linear project name / id / URL for the new bot
    * This README — image name and deploy examples
-   * `src/handlers/slashcommands.js` — `DEFAULT_DEV_GUILD_ID` (or always set `DEV_GUILD_ID` / `devGuildId`)
+   * `AGENTS.md` — Linear project name / id / URL, if you have a Linear project already
 
 3. **Remove voice** (skip this if you want on-demand voice channels):
 
@@ -89,7 +88,7 @@ Stancy is a starter template. The on-demand voice feature is self-contained: del
 
    In `config.json` set `token`, `clientId`, and `environment`. Optional: `bugsnagKey`, `botOwnerId`, `defaultSettings`.
 
-   In `.env` set `BOT_CONFIG` to that config file (`../config.json` from `src/bot.js`, i.e. the file next to `package.json`). Set `DEV_GUILD_ID` to **your** test guild. If `environment` is `development` and you leave `DEV_GUILD_ID` / `devGuildId` unset, commands still register to the historical GWJ guild `545109131330191371` — change `DEFAULT_DEV_GUILD_ID` in `src/handlers/slashcommands.js` or set `environment` to `production` for global registration.
+   In `.env` set `BOT_CONFIG` to that config file (`../config.json` from `src/bot.js`, i.e. the file next to `package.json`). Set `DEV_GUILD_ID` to **your** test guild (the key is already in `.env.example`). If you leave it blank, commands register globally and can take up to an hour to appear.
 
 5. **Install, test, register commands.**
 
@@ -99,7 +98,7 @@ Stancy is a starter template. The on-demand voice feature is self-contained: del
    bun run start
    ```
 
-   Starting the bot registers slash commands. They are guild-scoped when `DEV_GUILD_ID` or `devGuildId` is set, **or** when `environment` is `development` (that path uses `DEFAULT_DEV_GUILD_ID` unless you override it). They register globally only when `environment` is not `development` and no guild id is set. Confirm `/ping`, `/status`, and `/settings` appear in Discord.
+   Starting the bot registers slash commands. They are guild-scoped (instant) when `DEV_GUILD_ID` or `devGuildId` is set, otherwise global. Confirm `/ping`, `/status`, and `/settings` appear in Discord.
 
 6. **Deploy the container.** Put `config.json` on a volume mounted at `/data` (see **Container deploy** below). Build and push via GitHub Actions (`REGISTRY_USERNAME` / `REGISTRY_TOKEN` secrets) or:
 
