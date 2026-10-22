@@ -42,6 +42,14 @@ function userIdFrom(context) {
   return context.user?.id || context.author?.id;
 }
 
+function applicationOwnerId(client) {
+  const owner = client?.appInfo?.owner || client?.application?.owner;
+  if (!owner) return null;
+  if (typeof owner === "string") return owner;
+  // Team owners expose the owning user as ownerId; User owners use id.
+  return owner.ownerId || owner.id || null;
+}
+
 // Game Bot's permission ladder, updated for discord.js v14 Collections
 // (`roles.cache`) and slash-command interactions (`user` instead of `author`).
 module.exports = [
@@ -90,9 +98,7 @@ module.exports = [
     check: (context) => {
       const userId = userIdFrom(context);
       const ownerId =
-        context.client?.config?.botOwnerId ||
-        context.client?.appInfo?.owner?.id ||
-        context.client?.application?.owner?.id;
+        context.client?.config?.botOwnerId || applicationOwnerId(context.client);
       return Boolean(ownerId && userId && ownerId === userId);
     },
   },

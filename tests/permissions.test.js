@@ -109,6 +109,18 @@ describe("permission levels", () => {
       )
     ).toBe(10);
   });
+
+  test("a Team application ownerId is treated as Bot Owner", () => {
+    expect(
+      permlevel(
+        permLevels,
+        context({
+          userId: "boss",
+          client: { application: { owner: { id: "team-1", ownerId: "boss" } } },
+        })
+      )
+    ).toBe(10);
+  });
 });
 
 describe("command permission checks", () => {

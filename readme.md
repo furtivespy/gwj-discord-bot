@@ -20,7 +20,7 @@ Required config keys (same as today): `token`, `clientId`, `bugsnagKey`, `enviro
 Optional:
 
 * `defaultSettings` — per-server defaults (`modRole`, `adminRole`, `systemNotice`) merged with guild overrides stored in SQLite
-* `botOwnerId` — Discord user id treated as Bot Owner for permission checks
+* `botOwnerId` — Discord user id treated as Bot Owner for permission checks. If unset, the Discord application owner (fetched on ready) is used.
 * `STANCY_DATA_DIR` (env) — local directory for SQLite files (defaults to `./data`). In a container this is always `/data`.
 * `DEV_GUILD_ID` (env) or `devGuildId` (config) — register slash commands to this guild instead of globally. Instant updates while developing. If `environment` is `development` and neither is set, Stancy still uses the historical GWJ test guild `545109131330191371` so existing deploys keep working.
 

@@ -155,4 +155,55 @@ describe("BunEnmap persistence", () => {
     });
     store.close();
   });
+
+  test("does not cache JSON null so ensure can restore defaults", () => {
+    const nullDir = fs.mkdtempSync(path.join(os.tmpdir(), "stancy-null-"));
+    const { Database } = require("bun:sqlite");
+    const db = new Database(path.join(nullDir, "settings.sqlite"), { create: true });
+    db.exec(`
+      CREATE TABLE enmap_store (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
+    db.query("INSERT INTO enmap_store (key, value) VALUES (?, ?)").run("default", "null");
+    db.close();
+
+    const store = new BunEnmap({
+      name: "settings",
+      cloneLevel: "deep",
+      dataDir: nullDir,
+    });
+    expect(store.has("default")).toBe(false);
+    expect(getSettings(store, DEFAULT_SETTINGS).modRole).toBe("Moderator");
+    store.close();
+    fs.rmSync(nullDir, { recursive: true, force: true });
+  });
+
+  test("does not Function-eval or cache legacy non-JSON values", () => {
+    const evalDir = fs.mkdtempSync(path.join(os.tmpdir(), "stancy-eval-"));
+    const { Database } = require("bun:sqlite");
+    const db = new Database(path.join(evalDir, "settings.sqlite"), { create: true });
+    db.exec(`
+      CREATE TABLE enmap_store (
+        key TEXT PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+    `);
+    db.query("INSERT INTO enmap_store (key, value) VALUES (?, ?)").run(
+      "default",
+      "undefined"
+    );
+    db.close();
+
+    const store = new BunEnmap({
+      name: "settings",
+      cloneLevel: "deep",
+      dataDir: evalDir,
+    });
+    expect(store.has("default")).toBe(false);
+    expect(getSettings(store, DEFAULT_SETTINGS).modRole).toBe("Moderator");
+    store.close();
+    fs.rmSync(evalDir, { recursive: true, force: true });
+  });
 });

@@ -143,11 +143,16 @@ async function denyPermission(interaction, kind, permission) {
     }
     return;
   }
-  // Slash/component interactions must be acked. systemNotice only controls detail.
-  const content = shouldSendPermissionNotice(interaction.settings)
-    ? permission.message
-    : "You do not have permission to use this command.";
-  await sendErrorReply(interaction, content);
+  if (shouldSendPermissionNotice(interaction.settings)) {
+    await sendErrorReply(interaction, permission.message);
+    return;
+  }
+  // systemNotice "false" suppresses the denial text, but Discord still needs
+  // an ack within 3s or it shows "This interaction failed".
+  if (interaction.deferred || interaction.replied) return;
+  if (typeof interaction.deferReply === "function") {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  }
 }
 
 async function dispatch(command, interaction, kind) {

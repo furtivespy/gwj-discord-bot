@@ -242,6 +242,22 @@ describe("/settings", () => {
     expect(replies[1].content).toBe("modRole is currently `Cool Mods`");
   });
 
+  test("show uses guildId when guild is null", async () => {
+    const client = settingsClient();
+    client.writeSettings("guild-1", { modRole: "Mods" });
+    const command = new Settings(client);
+    const replies = [];
+
+    await command.execute({
+      guildId: "guild-1",
+      guild: null,
+      options: { getSubcommand: () => "show", getString: () => null },
+      reply: async (payload) => replies.push(payload),
+    });
+
+    expect(replies[0].content).toContain("modRole: `Mods`");
+  });
+
   test("set uses guildId when interaction.guild is missing", async () => {
     const client = settingsClient();
     client.writeSettings("guild-1", { modRole: "Night Watch" });

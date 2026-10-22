@@ -1,11 +1,15 @@
 const { describe, expect, test } = require("bun:test");
 const {
+  STORE_KEYS,
   closeStores,
   gracefulShutdown,
   registerShutdownHandlers,
 } = require("../src/util/gracefulShutdown.js");
 
 describe("gracefulShutdown", () => {
+  test("only closes the settings store this bot opens", () => {
+    expect(STORE_KEYS).toEqual(["settings"]);
+  });
   test("closes BunEnmap-style stores and exits 0", () => {
     const closed = [];
     const client = {

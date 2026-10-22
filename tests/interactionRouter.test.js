@@ -50,6 +50,7 @@ function baseInteraction(overrides = {}) {
     user: { id: "user-1" },
     guildId: "guild-1",
     reply: async () => {},
+    deferReply: async () => {},
     editReply: async () => {},
     ...overrides,
   };
@@ -381,8 +382,9 @@ describe("interaction router", () => {
     expect(executed).toEqual(["ran"]);
   });
 
-  test("still acks when systemNotice is false so Discord does not show a failure", async () => {
+  test("acks denied slash interactions when systemNotice is false", async () => {
     const replies = [];
+    const defers = [];
     const client = permissionClient({
       lock: {
         conf: { permLevel: "Moderator" },
@@ -391,7 +393,7 @@ describe("interaction router", () => {
     });
     client.getSettings = () => ({ ...DEFAULT_SETTINGS, systemNotice: "false" });
 
-    await routeInteraction(
+    const result = await routeInteraction(
       client,
       baseInteraction({
         isCommand: () => true,
@@ -399,15 +401,13 @@ describe("interaction router", () => {
         guild: guildWithRoles(),
         member: memberWithRoles(),
         reply: async (payload) => replies.push(payload),
+        deferReply: async (payload) => defers.push(payload),
       })
     );
 
-    expect(replies).toEqual([
-      {
-        content: "You do not have permission to use this command.",
-        flags: MessageFlags.Ephemeral,
-      },
-    ]);
+    expect(result.denied).toBe(true);
+    expect(replies).toEqual([]);
+    expect(defers).toEqual([{ flags: MessageFlags.Ephemeral }]);
   });
 
   test("loads guild settings from guildId when interaction.guild is missing", async () => {

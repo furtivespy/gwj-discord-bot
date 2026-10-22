@@ -36,7 +36,11 @@ function parseStoredValue(rawValue) {
   if (rawValue === null || rawValue === undefined) {
     throw new Error("empty enmap value");
   }
-  return JSON.parse(rawValue);
+  const value = JSON.parse(rawValue);
+  if (value === null || value === undefined) {
+    throw new Error("null enmap value");
+  }
+  return value;
 }
 
 class BunEnmap {
@@ -66,6 +70,7 @@ class BunEnmap {
         this.cache.set(row.key, parseStoredValue(row.value));
       } catch {
         // Skip unreadable rows. Caching null would make ensure() skip repair.
+        console.warn(`BunEnmap(${this.name}): skipping unparseable row ${row.key}`);
       }
     }
   }
