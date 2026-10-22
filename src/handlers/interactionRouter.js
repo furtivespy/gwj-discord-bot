@@ -1,4 +1,9 @@
 const { MessageFlags } = require("discord.js");
+const {
+  checkCommandPermission,
+  permissionContext,
+  shouldSendPermissionNotice,
+} = require("../util/permissions.js");
 
 const COMMAND_ERROR = "There was an error while executing this command!";
 const BUTTON_ERROR = "There was an error while processing this button!";
@@ -102,6 +107,39 @@ async function sendErrorReply(interaction, content) {
   });
 }
 
+function attachSettings(client, interaction) {
+  if (typeof client.getSettings !== "function") return null;
+  const settings = client.getSettings(interaction.guild);
+  interaction.settings = settings;
+  return settings;
+}
+
+function evaluatePermission(client, interaction, command) {
+  if (!client.permLevels || !client.levelCache) {
+    return { allowed: true };
+  }
+  const settings = interaction.settings || attachSettings(client, interaction) || {};
+  const context = permissionContext(interaction, settings);
+  context.client = client;
+  return checkCommandPermission({
+    permLevels: client.permLevels,
+    levelCache: client.levelCache,
+    context,
+    command,
+  });
+}
+
+async function denyPermission(interaction, kind, permission) {
+  if (kind === "autocomplete") {
+    if (typeof interaction.respond === "function") {
+      await interaction.respond([]);
+    }
+    return;
+  }
+  if (!shouldSendPermissionNotice(interaction.settings)) return;
+  await sendErrorReply(interaction, permission.message);
+}
+
 async function dispatch(command, interaction, kind) {
   if (kind === "autocomplete") {
     const handler = command.autocomplete || command.execute;
@@ -128,11 +166,19 @@ async function routeInteraction(client, interaction) {
   const command = resolveCommand(client, interaction, kind);
   if (!command) return { handled: false };
 
+  attachSettings(client, interaction);
+
   const startedAt = Date.now();
   const inboundMs = startedAt - (interaction.createdTimestamp || startedAt);
   const label = timingLabel(interaction, kind);
 
   try {
+    const permission = evaluatePermission(client, interaction, command);
+    if (!permission.allowed) {
+      await denyPermission(interaction, kind, permission);
+      return { handled: true, denied: true, command, permission };
+    }
+
     await dispatch(command, interaction, kind);
     return { handled: true, command };
   } catch (error) {
@@ -154,6 +200,7 @@ module.exports = {
   findCommandByCustomId,
   commandNameFromCustomId,
   interactionKind,
+  evaluatePermission,
   COMMAND_ERROR,
   BUTTON_ERROR,
   SELECT_ERROR,

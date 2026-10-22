@@ -25,7 +25,7 @@ FROM base
 # Copy built application
 COPY --from=build /app /app
 
-# Config lives on a separate volume (same /data mount as the old Fly app)
+# Config and SQLite settings live on a separate volume (same /data mount as the old Fly app)
 RUN mkdir -p /data
 VOLUME /data
 

@@ -46,6 +46,7 @@ describe("file discovery", () => {
 
     expect(commands.some((file) => file.endsWith("ping.js"))).toBe(true);
     expect(commands.some((file) => file.endsWith("voiceCreate.js"))).toBe(true);
+    expect(commands.some((file) => file.endsWith("settings.js"))).toBe(true);
     expect(events.some((file) => file.endsWith("ready.js"))).toBe(true);
     expect(events.some((file) => file.endsWith("interactionCreate.js"))).toBe(true);
     expect(events.some((file) => file.endsWith("voiceStateUpdate.js"))).toBe(true);
@@ -69,8 +70,11 @@ describe("slash command loader", () => {
 
     expect(client.slash_commands.get("ping")?.data.name).toBe("ping");
     expect(client.slash_commands.get("voice-create")?.data.name).toBe("voice-create");
+    expect(client.slash_commands.get("settings")?.data.name).toBe("settings");
+    expect(client.slash_commands.get("settings")?.conf.permLevel).toBe("Administrator");
     expect(commands.map((command) => command.data.name).sort()).toEqual([
       "ping",
+      "settings",
       "voice-create",
     ]);
     expect(logs.some((line) => String(line).includes("Loading Slash Command: ping."))).toBe(
@@ -164,15 +168,15 @@ describe("slash command registration", () => {
       rest,
       env: { DEV_GUILD_ID: "999" },
     });
-    expect(guild).toEqual({ scope: "guild", guildId: "999", count: 2 });
+    expect(guild).toEqual({ scope: "guild", guildId: "999", count: 3 });
 
     const global = await registerSlashCommands(client, commands, {
       rest,
       env: {},
     });
-    expect(global).toEqual({ scope: "global", count: 2 });
+    expect(global).toEqual({ scope: "global", count: 3 });
     expect(puts).toHaveLength(2);
-    expect(puts[0].payload.body).toHaveLength(2);
-    expect(puts[1].payload.body).toHaveLength(2);
+    expect(puts[0].payload.body).toHaveLength(3);
+    expect(puts[1].payload.body).toHaveLength(3);
   });
 });

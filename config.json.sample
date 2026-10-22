@@ -3,5 +3,11 @@
   "clientId": "12345",
   "bugsnagKey": "abc123",
   "environment": "development",
-  "devGuildId": ""
+  "devGuildId": "",
+  "botOwnerId": "",
+  "defaultSettings": {
+    "modRole": "Moderator",
+    "adminRole": "Administrator",
+    "systemNotice": "true"
+  }
 }

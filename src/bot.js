@@ -1,4 +1,5 @@
-require('dotenv').config();
+require("dotenv").config();
+const path = require("path");
 const {
   Client,
   Collection,
@@ -6,6 +7,17 @@ const {
   GatewayIntentBits,
   ActivityType,
 } = require("discord.js");
+const BunEnmap = require("./db/BunEnmap.js");
+const { resolveConfigPath } = require("./db/dataDir.js");
+const permLevels = require("./config.permissionLevels.js");
+const {
+  DEFAULT_SETTINGS,
+  resolveDefaults,
+  getSettings,
+  writeSettings,
+} = require("./util/settings.js");
+const { buildLevelCache, permlevel } = require("./util/permissions.js");
+const { registerShutdownHandlers } = require("./util/gracefulShutdown.js");
 
 const partials = [Partials.Guild];
 const intents = [
@@ -21,12 +33,36 @@ const presence = {
   }],
 };
 
-class DiscordBot extends Client {
-  constructor(options) {
-    super(options);
-    this.config = require(process.env.BOT_CONFIG);
+function loadConfig(env = process.env) {
+  const raw = env.BOT_CONFIG || resolveConfigPath(env);
+  if (path.isAbsolute(raw)) {
+    return require(raw);
+  }
+  try {
+    return require(raw);
+  } catch (error) {
+    return require(path.resolve(raw));
+  }
+}
 
-    //requiring the Logger class for easy console logging
+class DiscordBot extends Client {
+  constructor(options = {}) {
+    const { config, dataDir, ...clientOptions } = options;
+    super(clientOptions);
+    this.config = config || loadConfig();
+    this.config.defaultSettings = resolveDefaults(this.config.defaultSettings);
+
+    this.permLevels = permLevels;
+    this.levelCache = buildLevelCache(this.permLevels);
+
+    this.settings = new BunEnmap({
+      name: "settings",
+      cloneLevel: "deep",
+      dataDir,
+    });
+    this.dataStores = [this.settings];
+    this.settings.ensure("default", this.config.defaultSettings);
+
     this.logger = require("./util/logger.js")({
       apiKey: this.config.bugsnagKey,
       releaseStage: this.config.environment,
@@ -34,16 +70,24 @@ class DiscordBot extends Client {
 
     this.slash_commands = new Collection();
     this.events = new Collection();
+  }
 
+  permlevel(context) {
+    return permlevel(this.permLevels, context);
+  }
+
+  getSettings(guild) {
+    return getSettings(this.settings, this.config.defaultSettings, guild);
+  }
+
+  writeSettings(id, newSettings) {
+    return writeSettings(this.settings, id, newSettings);
   }
 }
 
 const init = async () => {
-  // Delay the start of the bot for debugging
-  //console.log("Starting bot in 1 minutes...");
-  //await new Promise(resolve => setTimeout(resolve, 1 * 60 * 1000));
   console.log("Starting bot now...");
-  
+
   const bot = new DiscordBot({
     partials,
     intents,
@@ -51,12 +95,16 @@ const init = async () => {
   });
   bot.logger.info("Starting Bot", "bot.js");
 
-  //What do we require?
-  const commands = require("./handlers/slashcommands.js")(bot);
-  const events = require("./handlers/events.js")(bot);
+  require("./handlers/slashcommands.js")(bot);
+  require("./handlers/events.js")(bot);
 
-  //logging into the bot
+  registerShutdownHandlers(bot);
+
   bot.login(bot.config.token);
+};
+
+if (require.main === module) {
+  init();
 }
 
-init();
+module.exports = { DiscordBot, loadConfig, init };

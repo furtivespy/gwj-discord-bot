@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
 import { ChannelType, MessageFlags } from "discord.js";
 import Ping from "../src/commands/slash/ping.js";
+import Settings from "../src/commands/slash/settings.js";
 import VoiceCreate from "../src/commands/slash/voiceCreate.js";
 import { FALLBACK_PARENT_ID } from "../src/util/onDemandVoice.js";
+import { DEFAULT_SETTINGS, getSettings, writeSettings } from "../src/util/settings.js";
 
 function silentLogger() {
   return {
@@ -30,14 +32,21 @@ describe("slash command modules", () => {
   test("load without a Discord token and expose slash metadata", () => {
     const ping = new Ping(avatarClient());
     const voiceCreate = new VoiceCreate({ logger: silentLogger() });
+    const settings = new Settings({ logger: silentLogger() });
 
     expect(ping.data.name).toBe("ping");
     expect(ping.data.description).toBe("Replies with Pong!");
     expect(ping).toBeInstanceOf(Ping);
+    expect(ping.conf.permLevel).toBe("User");
 
     expect(voiceCreate.data.name).toBe("voice-create");
     expect(voiceCreate.data.description).toBe("Creates a voice channel");
     expect(voiceCreate).toBeInstanceOf(VoiceCreate);
+    expect(voiceCreate.conf.permLevel).toBe("User");
+
+    expect(settings.data.name).toBe("settings");
+    expect(settings.conf.permLevel).toBe("Administrator");
+    expect(settings).toBeInstanceOf(Settings);
 
     const json = voiceCreate.data.toJSON();
     const nameOption = json.options.find((option) => option.name === "name");
@@ -145,5 +154,112 @@ describe("/voice-create", () => {
     });
 
     expect(create.calls[0].parent).toBe(FALLBACK_PARENT_ID);
+  });
+});
+
+function memoryStore(initial = {}) {
+  const data = new Map(Object.entries(initial));
+  return {
+    get: (key) => data.get(String(key)),
+    set(key, value) {
+      data.set(String(key), value);
+      return this;
+    },
+    has: (key) => data.has(String(key)),
+    ensure(key, defaultValue) {
+      const stringKey = String(key);
+      if (!data.has(stringKey)) {
+        data.set(
+          stringKey,
+          typeof defaultValue === "function" ? defaultValue() : { ...defaultValue }
+        );
+      }
+      return data.get(stringKey);
+    },
+    data,
+  };
+}
+
+function settingsClient() {
+  const store = memoryStore({ default: { ...DEFAULT_SETTINGS } });
+  return {
+    logger: silentLogger(),
+    settings: store,
+    getSettings(guild) {
+      return getSettings(store, DEFAULT_SETTINGS, guild);
+    },
+    writeSettings(id, next) {
+      return writeSettings(store, id, next);
+    },
+  };
+}
+
+describe("/settings", () => {
+  test("show lists merged guild settings", async () => {
+    const client = settingsClient();
+    client.writeSettings("guild-1", { modRole: "Mods" });
+    const command = new Settings(client);
+    const replies = [];
+
+    await command.execute({
+      guildId: "guild-1",
+      guild: { id: "guild-1" },
+      options: { getSubcommand: () => "show", getString: () => null },
+      reply: async (payload) => replies.push(payload),
+    });
+
+    expect(replies[0].content).toContain("modRole: `Mods`");
+    expect(replies[0].content).toContain("adminRole: `Administrator`");
+    expect(replies[0].flags).toBe(MessageFlags.Ephemeral);
+  });
+
+  test("set writes an override and get reads it back", async () => {
+    const client = settingsClient();
+    const command = new Settings(client);
+    const replies = [];
+
+    await command.execute({
+      guildId: "guild-1",
+      guild: { id: "guild-1" },
+      options: {
+        getSubcommand: () => "set",
+        getString: (name) => (name === "key" ? "modRole" : "Cool Mods"),
+      },
+      reply: async (payload) => replies.push(payload),
+    });
+    await command.execute({
+      guildId: "guild-1",
+      guild: { id: "guild-1" },
+      options: {
+        getSubcommand: () => "get",
+        getString: () => "modRole",
+      },
+      reply: async (payload) => replies.push(payload),
+    });
+
+    expect(client.getSettings({ id: "guild-1" }).modRole).toBe("Cool Mods");
+    expect(replies[0].content).toBe("modRole set to `Cool Mods`");
+    expect(replies[1].content).toBe("modRole is currently `Cool Mods`");
+  });
+
+  test("reset restores the default and drops the override", async () => {
+    const client = settingsClient();
+    client.writeSettings("guild-1", { adminRole: "Admins" });
+    const command = new Settings(client);
+    const replies = [];
+
+    await command.execute({
+      guildId: "guild-1",
+      guild: { id: "guild-1" },
+      options: {
+        getSubcommand: () => "reset",
+        getString: () => "adminRole",
+      },
+      reply: async (payload) => replies.push(payload),
+    });
+
+    expect(client.getSettings({ id: "guild-1" }).adminRole).toBe("Administrator");
+    expect(client.settings.get("guild-1").adminRole).toBeUndefined();
+    expect(replies[0].content).toContain("reset to default `Administrator`");
   });
 });

@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { Collection, MessageFlags } from "discord.js";
+import permLevels from "../src/config.permissionLevels.js";
 import {
   BUTTON_ERROR,
   COMMAND_ERROR,
@@ -9,6 +10,8 @@ import {
   findCommandByCustomId,
   routeInteraction,
 } from "../src/handlers/interactionRouter.js";
+import { buildLevelCache, permlevel } from "../src/util/permissions.js";
+import { DEFAULT_SETTINGS } from "../src/util/settings.js";
 
 function silentLogger() {
   const timing = [];
@@ -52,12 +55,47 @@ function baseInteraction(overrides = {}) {
   };
 }
 
-function clientWithCommands(commands, logger = silentLogger()) {
+function clientWithCommands(commands, logger = silentLogger(), extras = {}) {
   const collection = new Collection();
   for (const [name, command] of Object.entries(commands)) {
     collection.set(name, command);
   }
-  return { slash_commands: collection, logger };
+  return { slash_commands: collection, logger, ...extras };
+}
+
+function permissionClient(commands, logger = silentLogger()) {
+  const levelCache = buildLevelCache(permLevels);
+  return clientWithCommands(commands, logger, {
+    permLevels,
+    levelCache,
+    permlevel(context) {
+      return permlevel(permLevels, context);
+    },
+    getSettings() {
+      return { ...DEFAULT_SETTINGS };
+    },
+  });
+}
+
+function memberWithRoles(roleIds = []) {
+  return {
+    roles: {
+      cache: { has: (id) => roleIds.includes(id) },
+      has: (id) => roleIds.includes(id),
+    },
+  };
+}
+
+function guildWithRoles(roles = [{ id: "role-mod", name: "Moderator" }]) {
+  return {
+    id: "guild-1",
+    ownerId: "owner-1",
+    roles: {
+      cache: {
+        find: (predicate) => roles.find(predicate),
+      },
+    },
+  };
 }
 
 describe("customId prefix routing", () => {
@@ -283,5 +321,86 @@ describe("interaction router", () => {
       content: MODAL_ERROR,
       flags: MessageFlags.Ephemeral,
     });
+  });
+
+  test("denies a non-mod running a Moderator command", async () => {
+    const executed = [];
+    const replies = [];
+    const client = permissionClient({
+      lock: {
+        conf: { permLevel: "Moderator" },
+        async execute() {
+          executed.push("ran");
+        },
+      },
+    });
+
+    const result = await routeInteraction(
+      client,
+      baseInteraction({
+        isCommand: () => true,
+        commandName: "lock",
+        guild: guildWithRoles(),
+        member: memberWithRoles(),
+        user: { id: "user-1" },
+        reply: async (payload) => replies.push(payload),
+      })
+    );
+
+    expect(result.denied).toBe(true);
+    expect(executed).toEqual([]);
+    expect(replies[0].content).toContain("permission");
+    expect(replies[0].flags).toBe(MessageFlags.Ephemeral);
+  });
+
+  test("allows a mod to run a Moderator command", async () => {
+    const executed = [];
+    const client = permissionClient({
+      lock: {
+        conf: { permLevel: "Moderator" },
+        async execute() {
+          executed.push("ran");
+        },
+      },
+    });
+
+    const result = await routeInteraction(
+      client,
+      baseInteraction({
+        isCommand: () => true,
+        commandName: "lock",
+        guild: guildWithRoles(),
+        member: memberWithRoles(["role-mod"]),
+        user: { id: "user-1" },
+      })
+    );
+
+    expect(result.denied).toBeUndefined();
+    expect(result.handled).toBe(true);
+    expect(executed).toEqual(["ran"]);
+  });
+
+  test("stays silent when systemNotice is false", async () => {
+    const replies = [];
+    const client = permissionClient({
+      lock: {
+        conf: { permLevel: "Moderator" },
+        async execute() {},
+      },
+    });
+    client.getSettings = () => ({ ...DEFAULT_SETTINGS, systemNotice: "false" });
+
+    await routeInteraction(
+      client,
+      baseInteraction({
+        isCommand: () => true,
+        commandName: "lock",
+        guild: guildWithRoles(),
+        member: memberWithRoles(),
+        reply: async (payload) => replies.push(payload),
+      })
+    );
+
+    expect(replies).toEqual([]);
   });
 });
