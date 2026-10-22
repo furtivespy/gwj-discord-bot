@@ -5,7 +5,8 @@ const SERVICE_NAME_ATTR = "service.name";
 function parseOtelHeaders(raw) {
   if (!raw || typeof raw !== "string") return {};
   const headers = {};
-  for (const part of raw.split(",")) {
+  // Split only on commas that start another key=value pair so values may contain commas.
+  for (const part of raw.split(/,(?=\s*[^,=]+=)/)) {
     const idx = part.indexOf("=");
     if (idx === -1) continue;
     const key = part.slice(0, idx).trim();
@@ -34,7 +35,6 @@ function resolveTracingConfig(env = process.env) {
 }
 
 let sdk = null;
-let flushPromise = null;
 let warnedDisabled = false;
 
 function createServiceResource(serviceName) {
@@ -108,59 +108,64 @@ function startTracing(env = process.env, deps = {}) {
     return { enabled: false };
   }
 
-  const {
-    NodeSDK,
-    OTLPTraceExporter,
-    BatchSpanProcessor,
-    SimpleSpanProcessor,
-    ConsoleSpanExporter,
-    getNodeAutoInstrumentations,
-    trace,
-    SpanStatusCode,
-  } = loadSdkDeps(deps);
+  try {
+    const {
+      NodeSDK,
+      OTLPTraceExporter,
+      BatchSpanProcessor,
+      SimpleSpanProcessor,
+      ConsoleSpanExporter,
+      getNodeAutoInstrumentations,
+      trace,
+      SpanStatusCode,
+    } = loadSdkDeps(deps);
 
-  applyServiceName(config.serviceName, env);
+    applyServiceName(config.serviceName, env);
 
-  const otlpExporter = new OTLPTraceExporter({
-    url: config.endpoint,
-    headers: config.headers,
-  });
+    const otlpExporter = new OTLPTraceExporter({
+      url: config.endpoint,
+      headers: config.headers,
+    });
 
-  const spanProcessors = [new BatchSpanProcessor(otlpExporter)];
+    const spanProcessors = [new BatchSpanProcessor(otlpExporter)];
 
-  if (config.debugSpans) {
-    spanProcessors.push(new SimpleSpanProcessor(new ConsoleSpanExporter()));
-    console.log("[tracing] OTEL_DEBUG_SPANS=true — spans will print to console");
+    if (config.debugSpans) {
+      spanProcessors.push(new SimpleSpanProcessor(new ConsoleSpanExporter()));
+      console.log("[tracing] OTEL_DEBUG_SPANS=true — spans will print to console");
+    }
+
+    const sdkOptions = {
+      serviceName: config.serviceName,
+      spanProcessors,
+      instrumentations: [
+        getNodeAutoInstrumentations({
+          "@opentelemetry/instrumentation-http": { enabled: true },
+          "@opentelemetry/instrumentation-undici": { enabled: true },
+          "@opentelemetry/instrumentation-dns": { enabled: false },
+          "@opentelemetry/instrumentation-fs": { enabled: false },
+        }),
+      ],
+    };
+
+    const resource = deps.resource !== undefined
+      ? deps.resource
+      : createServiceResource(config.serviceName);
+    if (resource) sdkOptions.resource = resource;
+
+    sdk = new NodeSDK(sdkOptions);
+    sdk.start();
+    if (deps.patchDiscordRest !== false) {
+      patchDiscordRest(trace, SpanStatusCode);
+    }
+    console.log(
+      `[tracing] OTel started — service=${config.serviceName} → ${config.endpoint}`
+    );
+    return { enabled: true, config, sdkOptions };
+  } catch (err) {
+    sdk = null;
+    console.warn("[tracing] failed to start — continuing without traces:", err);
+    return { enabled: false, error: err };
   }
-
-  const sdkOptions = {
-    serviceName: config.serviceName,
-    spanProcessors,
-    instrumentations: [
-      getNodeAutoInstrumentations({
-        "@opentelemetry/instrumentation-http": { enabled: true },
-        "@opentelemetry/instrumentation-undici": { enabled: true },
-        "@opentelemetry/instrumentation-dns": { enabled: false },
-        "@opentelemetry/instrumentation-fs": { enabled: false },
-      }),
-    ],
-  };
-
-  const resource = deps.resource !== undefined
-    ? deps.resource
-    : createServiceResource(config.serviceName);
-  if (resource) sdkOptions.resource = resource;
-
-  sdk = new NodeSDK(sdkOptions);
-  sdk.start();
-  flushPromise = null;
-  if (deps.patchDiscordRest !== false) {
-    patchDiscordRest(trace, SpanStatusCode);
-  }
-  console.log(
-    `[tracing] OTel started — service=${config.serviceName} → ${config.endpoint}`
-  );
-  return { enabled: true, config, sdkOptions };
 }
 
 function patchDiscordRest(trace, SpanStatusCode) {
@@ -168,9 +173,10 @@ function patchDiscordRest(trace, SpanStatusCode) {
     const { REST } = require("@discordjs/rest");
     const discordRestTracer = trace.getTracer("stancy-bot:rest");
     const originalQueueRequest = REST.prototype.queueRequest;
-    REST.prototype.queueRequest = async function patchedQueueRequest(options = {}) {
-      const method = options.method ?? "UNKNOWN";
-      const fullRoute = options.fullRoute;
+    REST.prototype.queueRequest = async function patchedQueueRequest(options) {
+      const request = options ?? {};
+      const method = request.method ?? "UNKNOWN";
+      const fullRoute = request.fullRoute;
       const routeData =
         typeof REST.generateRouteData === "function" && fullRoute
           ? REST.generateRouteData(fullRoute, method)
@@ -213,28 +219,7 @@ async function shutdownTracing() {
   await active.shutdown();
 }
 
-function flushTracing(timeoutMs = 5000) {
-  if (!flushPromise) {
-    flushPromise = Promise.resolve()
-      .then(() => shutdownTracing())
-      .catch((err) => {
-        console.error("[tracing] shutdown failed:", err);
-      });
-  }
-  if (!timeoutMs) return flushPromise;
-  return Promise.race([
-    flushPromise,
-    new Promise((resolve) => {
-      const timer = setTimeout(resolve, timeoutMs);
-      if (typeof timer.unref === "function") timer.unref();
-    }),
-  ]);
-}
-
-function registerTracingShutdown({
-  processRef = process,
-  timeoutMs = 5000,
-} = {}) {
+function registerTracingShutdown({ processRef = process } = {}) {
   if (processRef[SHUTDOWN_INSTALLED]) {
     return processRef[SHUTDOWN_INSTALLED];
   }
@@ -243,44 +228,19 @@ function registerTracingShutdown({
     ? processRef.exit.bind(processRef)
     : null;
 
-  const installed = {
-    onSignal: null,
-    originalExit,
-    exiting: false,
-  };
-
   const onSignal = async () => {
-    await flushTracing(timeoutMs);
-    // Game Bot does sdk.shutdown().finally(() => process.exit(0)), which
-    // races FUR-111's gracefulShutdown store close. Flush here and only
-    // exit ourselves when nothing else has already called process.exit.
-    if (!installed.exiting && originalExit) {
-      installed.exiting = true;
-      originalExit(0);
+    if (!sdk) return;
+    try {
+      await shutdownTracing();
+    } catch (err) {
+      console.error("[tracing] shutdown failed:", err);
     }
+    if (originalExit) originalExit(0);
   };
 
-  installed.onSignal = onSignal;
   processRef.on("SIGTERM", onSignal);
   processRef.on("SIGINT", onSignal);
-
-  if (originalExit) {
-    processRef.exit = (code) => {
-      if (installed.exiting) {
-        return originalExit(code);
-      }
-      if (!sdk && !flushPromise) {
-        installed.exiting = true;
-        return originalExit(code);
-      }
-      installed.exiting = true;
-      // Other shutdown handlers (close stores, destroy the client) may call
-      // process.exit synchronously. Wait for the OTLP flush first so we do
-      // not drop the last batch, then exit with their code.
-      flushTracing(timeoutMs).finally(() => originalExit(code ?? 0));
-    };
-  }
-
+  const installed = { onSignal, originalExit };
   processRef[SHUTDOWN_INSTALLED] = installed;
   return installed;
 }

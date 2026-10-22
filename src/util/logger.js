@@ -1,4 +1,3 @@
-const Bugsnag = require("@bugsnag/js");
 const chalk = require("chalk");
 const moment = require("moment");
 
@@ -71,7 +70,7 @@ class BugsnagLogger {
     this.bugsnagClient = null;
 
     if (this.bugsnagEnabled) {
-      const client = options.Bugsnag || Bugsnag;
+      const client = options.Bugsnag || require("@bugsnag/js");
       this.bugsnagClient = client.start({
         apiKey,
         releaseStage: options.releaseStage,

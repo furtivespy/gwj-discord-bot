@@ -22,7 +22,7 @@ Optional:
 * `bugsnagKey` (config) — when set, `error` logs are reported to Bugsnag. When unset, blank, or the `config.json.sample` placeholder `abc123`, the logger stays on the console only (Game Bot's `BugsnagLogger` with a console fallback).
 * `DEV_GUILD_ID` (env) or `devGuildId` (config) — register slash commands to this guild instead of globally. Instant updates while developing. If `environment` is `development` and neither is set, Stancy still uses the historical GWJ test guild `545109131330191371` so existing deploys keep working.
 * `OTEL_EXPORTER_OTLP_ENDPOINT` (env) — optional OpenTelemetry. Tracing is off unless this endpoint is set. Same shape as Game Bot's `tracing.js`, but gated on an OTLP URL instead of a Honeycomb API key.
-* `OTEL_SERVICE_NAME` (env) — defaults to `stancy-bot` (passed into the OpenTelemetry SDK as the service name / resource, not only logged). SIGTERM/SIGINT flush the tracer from `src/bot.js` without exiting before other cleanup (FUR-111 store close can still run).
+* `OTEL_SERVICE_NAME` (env) — defaults to `stancy-bot` (passed into the OpenTelemetry SDK as the service name / resource, not only logged). SIGTERM/SIGINT flush-and-exit like Game Bot **only when tracing is enabled**. When the endpoint is unset, those signals are left alone so FUR-111 store close can own process lifetime. If both are on, call `shutdownTracing()` from graceful shutdown before exiting.
 * `OTEL_EXPORTER_OTLP_HEADERS` (env) — comma-separated `key=value` headers for the exporter (for Honeycomb: `x-honeycomb-team=YOUR_API_KEY` and endpoint `https://api.honeycomb.io/v1/traces`).
 * `OTEL_DEBUG_SPANS` (env) — set to `true` to also print spans to the console.
 

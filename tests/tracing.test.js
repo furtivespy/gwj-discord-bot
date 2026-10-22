@@ -139,6 +139,9 @@ describe("OpenTelemetry config", () => {
     expect(parseOtelHeaders("")).toEqual({});
     expect(parseOtelHeaders("no-equals")).toEqual({});
     expect(parseOtelHeaders("a=1,b=2")).toEqual({ a: "1", b: "2" });
+    expect(parseOtelHeaders("Authorization=Bearer a,b")).toEqual({
+      Authorization: "Bearer a,b",
+    });
   });
 });
 
@@ -200,10 +203,20 @@ describe("registerTracingShutdown", () => {
     restoreServiceName();
   });
 
-  test("bot.js wires SIGTERM/SIGINT through registerTracingShutdown", () => {
+  test("bot.js starts tracing and only hooks shutdown when it is enabled", () => {
     const src = fs.readFileSync(path.join(import.meta.dir, "../src/bot.js"), "utf8");
-    expect(src).toContain("registerTracingShutdown()");
     expect(src).toMatch(/startTracing\s*\(/);
+    expect(src).toMatch(/if\s*\(\s*tracing\.enabled\s*\)/);
+    expect(src).toContain("registerTracingShutdown()");
+  });
+
+  test("SIGTERM does not exit when tracing never started", async () => {
+    const { handlers, exits, processRef } = fakeProcess();
+    registerTracingShutdown({ processRef });
+
+    await handlers.SIGTERM();
+
+    expect(exits).toEqual([]);
   });
 
   test("registers SIGTERM and SIGINT and flushes the SDK", async () => {
@@ -213,7 +226,7 @@ describe("registerTracingShutdown", () => {
       deps
     );
     const { handlers, exits, processRef } = fakeProcess();
-    registerTracingShutdown({ processRef, timeoutMs: 1000 });
+    registerTracingShutdown({ processRef });
 
     expect(typeof handlers.SIGTERM).toBe("function");
     expect(typeof handlers.SIGINT).toBe("function");
@@ -224,31 +237,4 @@ describe("registerTracingShutdown", () => {
     expect(exits).toEqual([0]);
   });
 
-  test("process.exit from other cleanup waits for tracing flush", async () => {
-    const deps = fakeTracingDeps({ slowShutdown: true });
-    startTracing(
-      { OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel.example/v1/traces" },
-      deps
-    );
-    const { exits, processRef } = fakeProcess();
-    registerTracingShutdown({ processRef, timeoutMs: 2000 });
-
-    const order = [];
-    order.push("close-stores");
-    processRef.exit(0);
-
-    expect(order).toEqual(["close-stores"]);
-    expect(exits).toEqual([]);
-    expect(deps.instances[0].shutDown).toBe(false);
-
-    await Promise.resolve();
-    await Promise.resolve();
-    expect(typeof deps.instances[0].releaseShutdown).toBe("function");
-    deps.instances[0].releaseShutdown();
-    await new Promise((resolve) => setTimeout(resolve, 20));
-
-    expect(deps.instances[0].shutDown).toBe(true);
-    expect(exits).toEqual([0]);
-    expect(order).toEqual(["close-stores"]);
-  });
 });

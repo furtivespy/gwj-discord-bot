@@ -1,7 +1,13 @@
 require("dotenv").config();
 const { startTracing, registerTracingShutdown } = require("./util/tracing");
-startTracing();
-registerTracingShutdown();
+try {
+  const tracing = startTracing();
+  if (tracing.enabled) {
+    registerTracingShutdown();
+  }
+} catch (err) {
+  console.warn("[tracing] failed to start — continuing without traces:", err);
+}
 const {
   Client,
   Collection,
