@@ -1,10 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { ChannelType } from "discord.js";
-import { hasVoiceUtil } from "./helpers/voiceFeature.js";
+import { VOICE_UTIL, tryLoad } from "./helpers/voiceFeature.js";
 
-const voiceHelpers = hasVoiceUtil()
-  ? await import("../src/util/onDemandVoice.js")
-  : null;
+const voiceHelpers = tryLoad(VOICE_UTIL);
 const FALLBACK_PARENT_ID = voiceHelpers?.FALLBACK_PARENT_ID;
 const ON_DEMAND_CATEGORY_NAME = voiceHelpers?.ON_DEMAND_CATEGORY_NAME;
 const findOnDemandCategory = voiceHelpers?.findOnDemandCategory;

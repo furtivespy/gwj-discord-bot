@@ -48,7 +48,7 @@ Slash commands declare `permLevel` (User, Moderator, Administrator, Server Owner
 
 Stancy is a starter template. The on-demand voice feature is self-contained: delete one command and one event and the rest of the bot still answers `/ping`, `/status`, and `/settings`.
 
-1. **Copy the repo.** Clone it, fork it, or use it as a GitHub template.
+1. **Copy the repo.** Clone or fork it.
 
    ```
    git clone https://github.com/furtivespy/gwj-discord-bot.git my-new-bot
@@ -62,6 +62,7 @@ Stancy is a starter template. The on-demand voice feature is self-contained: del
    * `.github/workflows/_docker-build-push.yml` — `IMAGE_NAME`
    * `AGENTS.md` — Linear project name / id / URL for the new bot
    * This README — image name and deploy examples
+   * `src/handlers/slashcommands.js` — `DEFAULT_DEV_GUILD_ID` (or always set `DEV_GUILD_ID` / `devGuildId`)
 
 3. **Remove voice** (skip this if you want on-demand voice channels):
 
@@ -69,13 +70,15 @@ Stancy is a starter template. The on-demand voice feature is self-contained: del
    rm src/commands/slash/voiceCreate.js src/events/voiceStateUpdate.js
    ```
 
-   Optional cleanup after that:
+   Delete **both** files. Leaving one without the other either never cleans empty channels or never creates them. Then optionally:
 
    ```
    rm src/util/onDemandVoice.js
    ```
 
-   You can also drop `GatewayIntentBits.GuildVoiceStates` from the `intents` list in `src/bot.js`. Loaders auto-discover files, so nothing else in `src/` imports those modules.
+   Delete the util only after the command and event. You can also drop `GatewayIntentBits.GuildVoiceStates` from the `intents` list in `src/bot.js`. Loaders auto-discover files, so nothing else in `src/` imports those modules.
+
+   If you **keep** voice, create a Discord category named `on-demand voice`. Otherwise `/voice-create` falls back to a GWJ category snowflake in `FALLBACK_PARENT_ID` (`src/util/onDemandVoice.js`) that will not exist in your server — change or remove that constant.
 
 4. **Set env and config.**
 
@@ -86,7 +89,7 @@ Stancy is a starter template. The on-demand voice feature is self-contained: del
 
    In `config.json` set `token`, `clientId`, and `environment`. Optional: `bugsnagKey`, `botOwnerId`, `defaultSettings`.
 
-   In `.env` set `BOT_CONFIG` to that config file. Set `DEV_GUILD_ID` to **your** test guild. If `environment` is `development` and you leave `DEV_GUILD_ID` / `devGuildId` unset, commands still register to the historical GWJ guild `545109131330191371` — change `DEFAULT_DEV_GUILD_ID` in `src/handlers/slashcommands.js` or set `environment` to `production` for global registration.
+   In `.env` set `BOT_CONFIG` to that config file (`../config.json` from `src/bot.js`, i.e. the file next to `package.json`). Set `DEV_GUILD_ID` to **your** test guild. If `environment` is `development` and you leave `DEV_GUILD_ID` / `devGuildId` unset, commands still register to the historical GWJ guild `545109131330191371` — change `DEFAULT_DEV_GUILD_ID` in `src/handlers/slashcommands.js` or set `environment` to `production` for global registration.
 
 5. **Install, test, register commands.**
 
@@ -96,7 +99,7 @@ Stancy is a starter template. The on-demand voice feature is self-contained: del
    bun run start
    ```
 
-   Starting the bot registers slash commands (guild-scoped when `DEV_GUILD_ID` is set, otherwise global). Confirm `/ping`, `/status`, and `/settings` appear in Discord.
+   Starting the bot registers slash commands. They are guild-scoped when `DEV_GUILD_ID` or `devGuildId` is set, **or** when `environment` is `development` (that path uses `DEFAULT_DEV_GUILD_ID` unless you override it). They register globally only when `environment` is not `development` and no guild id is set. Confirm `/ping`, `/status`, and `/settings` appear in Discord.
 
 6. **Deploy the container.** Put `config.json` on a volume mounted at `/data` (see **Container deploy** below). Build and push via GitHub Actions (`REGISTRY_USERNAME` / `REGISTRY_TOKEN` secrets) or:
 

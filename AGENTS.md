@@ -40,7 +40,7 @@ On-demand voice is a sample feature, not core:
 - `src/events/voiceStateUpdate.js` (delete empty on-demand channels)
 - `src/util/onDemandVoice.js` (imported only by those two files)
 
-Do not import those modules from anything else in `src/`. A clone that deletes the command and the event must still load, register `/ping` `/status` `/settings`, and pass `bun test`. You may also drop `GatewayIntentBits.GuildVoiceStates` from `src/bot.js`.
+Do not import those modules from anything else in `src/`. A clone that deletes the command and the event must still load, register `/ping` `/status` `/settings`, and pass `bun test`. Delete both files together, then optionally `onDemandVoice.js`. You may also drop `GatewayIntentBits.GuildVoiceStates` from `src/bot.js`. Clones that keep voice should create an `on-demand voice` category (or change `FALLBACK_PARENT_ID`).
 
 ## Settings / SQLite
 

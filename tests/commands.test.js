@@ -6,16 +6,13 @@ import Status from "../src/commands/slash/status.js";
 import { DEFAULT_SETTINGS, getSettings, writeSettings } from "../src/util/settings.js";
 import { memoryStore } from "./helpers/memoryStore.js";
 import {
-  hasVoiceCommand,
-  hasVoiceUtil,
+  VOICE_COMMAND,
+  VOICE_UTIL,
+  tryLoad,
 } from "./helpers/voiceFeature.js";
 
-const VoiceCreate = hasVoiceCommand()
-  ? (await import("../src/commands/slash/voiceCreate.js")).default
-  : null;
-const FALLBACK_PARENT_ID = hasVoiceUtil()
-  ? (await import("../src/util/onDemandVoice.js")).FALLBACK_PARENT_ID
-  : null;
+const VoiceCreate = tryLoad(VOICE_COMMAND);
+const FALLBACK_PARENT_ID = tryLoad(VOICE_UTIL)?.FALLBACK_PARENT_ID ?? null;
 
 function silentLogger() {
   return {

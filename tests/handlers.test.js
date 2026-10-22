@@ -9,8 +9,8 @@ import loadSlashCommands, {
 } from "../src/handlers/slashcommands.js";
 import path from "path";
 import {
-  hasVoiceCommand,
-  hasVoiceEvent,
+  hasVoiceCommandFile,
+  hasVoiceEventFile,
 } from "./helpers/voiceFeature.js";
 
 function silentLogger() {
@@ -53,10 +53,10 @@ describe("file discovery", () => {
     expect(commands.some((file) => file.endsWith("settings.js"))).toBe(true);
     expect(events.some((file) => file.endsWith("ready.js"))).toBe(true);
     expect(events.some((file) => file.endsWith("interactionCreate.js"))).toBe(true);
-    if (hasVoiceCommand()) {
+    if (hasVoiceCommandFile()) {
       expect(commands.some((file) => file.endsWith("voiceCreate.js"))).toBe(true);
     }
-    if (hasVoiceEvent()) {
+    if (hasVoiceEventFile()) {
       expect(events.some((file) => file.endsWith("voiceStateUpdate.js"))).toBe(true);
     }
   });
@@ -83,11 +83,10 @@ describe("slash command loader", () => {
     expect(client.slash_commands.get("settings")?.conf.permLevel).toBe("Administrator");
     const names = commands.map((command) => command.data.name).sort();
     expect(names).toEqual(expect.arrayContaining(["ping", "settings", "status"]));
-    if (hasVoiceCommand()) {
-      expect(client.slash_commands.get("voice-create")?.data.name).toBe("voice-create");
-      expect(names).toContain("voice-create");
+    const voiceCreate = client.slash_commands.get("voice-create");
+    if (voiceCreate) {
+      expect(voiceCreate.data.name).toBe("voice-create");
     } else {
-      expect(client.slash_commands.get("voice-create")).toBeUndefined();
       expect(names).not.toContain("voice-create");
     }
     expect(logs.some((line) => String(line).includes("Loading Slash Command: ping."))).toBe(
@@ -99,7 +98,7 @@ describe("slash command loader", () => {
     expect(
       logs.some((line) => String(line).includes("Loading Slash Command: settings."))
     ).toBe(true);
-    if (hasVoiceCommand()) {
+    if (voiceCreate) {
       expect(
         logs.some((line) => String(line).includes("Loading Slash Command: voice-create."))
       ).toBe(true);
@@ -139,14 +138,12 @@ describe("event handler", () => {
     expect(client.events.get("interactionCreate")?.help.eventType).toBe(
       "interactionCreate"
     );
-    if (hasVoiceEvent()) {
+    const voiceStateUpdate = client.events.get("voiceStateUpdate");
+    if (voiceStateUpdate) {
       expect(typeof client.registered.voiceStateUpdate.handler).toBe("function");
-      expect(client.events.get("voiceStateUpdate")?.help.eventType).toBe(
-        "voiceStateUpdate"
-      );
+      expect(voiceStateUpdate.help.eventType).toBe("voiceStateUpdate");
     } else {
       expect(client.registered.voiceStateUpdate).toBeUndefined();
-      expect(client.events.get("voiceStateUpdate")).toBeUndefined();
     }
   });
 

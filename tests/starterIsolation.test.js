@@ -9,6 +9,8 @@ import loadSlashCommands, {
   registerSlashCommands,
 } from "../src/handlers/slashcommands.js";
 import { routeInteraction } from "../src/handlers/interactionRouter.js";
+import { DEFAULT_SETTINGS, getSettings, writeSettings } from "../src/util/settings.js";
+import { memoryStore } from "./helpers/memoryStore.js";
 import {
   VOICE_COMMAND,
   VOICE_EVENT,
@@ -38,6 +40,8 @@ function silentLogger() {
 
 function fakeClient() {
   const registered = {};
+  const store = memoryStore({ default: { ...DEFAULT_SETTINGS } });
+  writeSettings(store, "guild-1", { modRole: "Staff" });
   return {
     logger: silentLogger(),
     slash_commands: new Collection(),
@@ -48,6 +52,13 @@ function fakeClient() {
       displayAvatarURL: () => "https://cdn.example/bot.png",
     },
     guilds: { cache: { size: 2 } },
+    settings: store,
+    getSettings(guild) {
+      return getSettings(store, DEFAULT_SETTINGS, guild);
+    },
+    writeSettings(id, next) {
+      return writeSettings(store, id, next);
+    },
     registered,
     on(name, handler) {
       registered[name] = { bind: "on", handler };
@@ -56,17 +67,6 @@ function fakeClient() {
       registered[name] = { bind: "once", handler };
     },
   };
-}
-
-function walkJsFiles(dir) {
-  if (!fs.existsSync(dir)) return [];
-  const files = [];
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
-    const full = path.join(dir, entry.name);
-    if (entry.isDirectory()) files.push(...walkJsFiles(full));
-    else if (entry.name.endsWith(".js")) files.push(full);
-  }
-  return files;
 }
 
 function importedSpecifiers(source) {
@@ -96,7 +96,7 @@ function isVoiceModule(specifier) {
 function envVarsReferencedInSrc() {
   const names = new Set();
   const ident = /\b(?:env|process\.env)\.([A-Z][A-Z0-9_]+)/g;
-  for (const file of walkJsFiles(SRC)) {
+  for (const file of listJsFiles(SRC)) {
     const source = fs.readFileSync(file, "utf8");
     let match;
     while ((match = ident.exec(source))) names.add(match[1]);
@@ -122,7 +122,7 @@ describe("voice feature isolation", () => {
       path.resolve(VOICE_UTIL),
     ]);
     const offenders = [];
-    for (const file of walkJsFiles(SRC)) {
+    for (const file of listJsFiles(SRC)) {
       const resolved = path.resolve(file);
       if (allowed.has(resolved)) continue;
       const specs = importedSpecifiers(fs.readFileSync(file, "utf8"));
@@ -171,7 +171,8 @@ describe("voice feature isolation", () => {
 
       const pingReplies = [];
       const statusReplies = [];
-      const chatInput = (commandName, replies) => ({
+      const settingsReplies = [];
+      const chatInput = (commandName, replies, extras = {}) => ({
         isCommand: () => true,
         isChatInputCommand: () => true,
         isAutocomplete: () => false,
@@ -192,12 +193,22 @@ describe("voice feature isolation", () => {
         reply: async (payload) => {
           replies.push(payload);
         },
+        ...extras,
       });
       await routeInteraction(client, chatInput("ping", pingReplies));
       await routeInteraction(client, chatInput("status", statusReplies));
+      await routeInteraction(
+        client,
+        chatInput("settings", settingsReplies, {
+          guildId: "guild-1",
+          guild: { id: "guild-1" },
+          options: { getSubcommand: () => "show", getString: () => null },
+        })
+      );
       expect(pingReplies[0].content).toBe("Pong!");
       expect(statusReplies[0].content).toContain("Version:");
       expect(statusReplies[0].content).toContain("Servers: 2");
+      expect(settingsReplies[0].content).toContain("modRole: `Staff`");
     } finally {
       fs.rmSync(tmp, { recursive: true, force: true });
     }
