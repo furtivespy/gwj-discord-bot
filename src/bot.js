@@ -4,12 +4,10 @@ const {
   Collection,
   Partials,
   GatewayIntentBits,
-  PermissionsBitField,
-  REST,
-  Routes,
+  ActivityType,
 } = require("discord.js");
 
-const partials = ["Partials.Guild"];
+const partials = [Partials.Guild];
 const intents = [
   GatewayIntentBits.Guilds,
   GatewayIntentBits.GuildMembers,
@@ -19,7 +17,7 @@ const presence = {
   status: "online",
   activities: [{
     name: "with Slash Commands",
-    type: "PLAYING",
+    type: ActivityType.Playing,
   }],
 };
 
