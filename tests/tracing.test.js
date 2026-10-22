@@ -5,7 +5,6 @@ import {
   DEFAULT_SERVICE_NAME,
   SERVICE_NAME_ATTR,
   parseOtelHeaders,
-  registerTracingShutdown,
   resolveTracingConfig,
   shutdownTracing,
   startTracing,
@@ -86,20 +85,6 @@ function fakeTracingDeps({ slowShutdown = false } = {}) {
     patchDiscordRest: false,
     resource: { attributes: { [SERVICE_NAME_ATTR]: DEFAULT_SERVICE_NAME } },
   };
-}
-
-function fakeProcess() {
-  const handlers = {};
-  const exits = [];
-  const processRef = {
-    on(signal, handler) {
-      handlers[signal] = handler;
-    },
-    exit(code) {
-      exits.push(code);
-    },
-  };
-  return { handlers, exits, processRef };
 }
 
 describe("OpenTelemetry config", () => {
@@ -197,48 +182,13 @@ describe("startTracing", () => {
   });
 });
 
-describe("registerTracingShutdown", () => {
-  afterEach(async () => {
-    await shutdownTracing();
-    restoreServiceName();
-  });
-
-  test("bot.js starts tracing; graceful shutdown flushes it so SQLite close owns SIGTERM", () => {
+describe("production shutdown ownership", () => {
+  test("tracing.js does not export a signal helper; bot.js only starts the SDK", () => {
+    const tracing = require("../src/util/tracing.js");
     const botSrc = fs.readFileSync(path.join(import.meta.dir, "../src/bot.js"), "utf8");
-    const shutdownSrc = fs.readFileSync(
-      path.join(import.meta.dir, "../src/util/gracefulShutdown.js"),
-      "utf8"
-    );
+    expect(tracing.registerTracingShutdown).toBeUndefined();
     expect(botSrc).toMatch(/startTracing\s*\(/);
-    expect(botSrc).not.toContain("registerTracingShutdown()");
-    expect(shutdownSrc).toMatch(/shutdownTracing/);
+    expect(botSrc).not.toMatch(/registerTracingShutdown/);
+    expect(botSrc).toMatch(/registerShutdownHandlers/);
   });
-
-  test("SIGTERM does not exit when tracing never started", async () => {
-    const { handlers, exits, processRef } = fakeProcess();
-    registerTracingShutdown({ processRef });
-
-    await handlers.SIGTERM();
-
-    expect(exits).toEqual([]);
-  });
-
-  test("registers SIGTERM and SIGINT and flushes the SDK", async () => {
-    const deps = fakeTracingDeps();
-    startTracing(
-      { OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel.example/v1/traces" },
-      deps
-    );
-    const { handlers, exits, processRef } = fakeProcess();
-    registerTracingShutdown({ processRef });
-
-    expect(typeof handlers.SIGTERM).toBe("function");
-    expect(typeof handlers.SIGINT).toBe("function");
-
-    await handlers.SIGTERM();
-
-    expect(deps.instances[0].shutDown).toBe(true);
-    expect(exits).toEqual([0]);
-  });
-
 });

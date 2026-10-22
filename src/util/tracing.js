@@ -1,5 +1,4 @@
 const DEFAULT_SERVICE_NAME = "stancy-bot";
-const SHUTDOWN_INSTALLED = Symbol.for("stancy.tracingShutdown");
 const SERVICE_NAME_ATTR = "service.name";
 
 function parseOtelHeaders(raw) {
@@ -219,32 +218,6 @@ async function shutdownTracing() {
   await active.shutdown();
 }
 
-function registerTracingShutdown({ processRef = process } = {}) {
-  if (processRef[SHUTDOWN_INSTALLED]) {
-    return processRef[SHUTDOWN_INSTALLED];
-  }
-
-  const originalExit = typeof processRef.exit === "function"
-    ? processRef.exit.bind(processRef)
-    : null;
-
-  const onSignal = async () => {
-    if (!sdk) return;
-    try {
-      await shutdownTracing();
-    } catch (err) {
-      console.error("[tracing] shutdown failed:", err);
-    }
-    if (originalExit) originalExit(0);
-  };
-
-  processRef.on("SIGTERM", onSignal);
-  processRef.on("SIGINT", onSignal);
-  const installed = { onSignal, originalExit };
-  processRef[SHUTDOWN_INSTALLED] = installed;
-  return installed;
-}
-
 module.exports = {
   DEFAULT_SERVICE_NAME,
   SERVICE_NAME_ATTR,
@@ -252,5 +225,4 @@ module.exports = {
   resolveTracingConfig,
   startTracing,
   shutdownTracing,
-  registerTracingShutdown,
 };
