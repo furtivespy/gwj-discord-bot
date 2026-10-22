@@ -4,9 +4,10 @@ import path from "path";
 
 const SETTINGS_MODULE_PATH = path.join(import.meta.dir, "../src/util/settings.js");
 
-// FUR-111 (PR #3) owns src/util/settings.js. Until that lands, this file
-// inlines that module's merge helpers so the tests assert the real contract
-// (null default repair, guild.guildId, empty id) rather than a looser stand-in.
+// FUR-111 / PR #3 owns src/util/settings.js. Until that lands, this file
+// inlines that module's merge helpers (resolveGuildId, storedDefaults null
+// repair, drop keys that match defaults) so these tests assert the same
+// contract. When the real module exists, the tests call it instead.
 const FALLBACK_DEFAULT_SETTINGS = {
   modRole: "Moderator",
   adminRole: "Administrator",
@@ -104,10 +105,11 @@ function memoryStore(initial = {}) {
 }
 
 describe("settings merge contract", () => {
-  test("uses src/util/settings.js when FUR-111 has landed, otherwise the in-test contract", () => {
+  test("uses src/util/settings.js when FUR-111 has landed, otherwise the inlined PR #3 helpers", () => {
     if (settingsModule) {
       expect(typeof settingsModule.getSettings).toBe("function");
       expect(typeof settingsModule.writeSettings).toBe("function");
+      expect(typeof settingsModule.resolveGuildId).toBe("function");
       expect(settingsModule.DEFAULT_SETTINGS).toEqual(DEFAULT_SETTINGS);
     } else {
       expect(fs.existsSync(SETTINGS_MODULE_PATH)).toBe(false);
@@ -147,12 +149,14 @@ describe("settings merge contract", () => {
     );
   });
 
-  test("repairs a null default row and accepts guild.guildId", () => {
-    const store = memoryStore({ default: null });
-    expect(getSettings(store, DEFAULT_SETTINGS, { guildId: "guild-1" })).toEqual(
-      DEFAULT_SETTINGS
+  test("accepts a guild id string, guild.guildId, and ignores objects with no id", () => {
+    const store = memoryStore({ default: { ...DEFAULT_SETTINGS } });
+    writeSettings(store, "guild-1", { modRole: "Mods" });
+    expect(getSettings(store, DEFAULT_SETTINGS, "guild-1").modRole).toBe("Mods");
+    expect(getSettings(store, DEFAULT_SETTINGS, { guildId: "guild-1" }).modRole).toBe(
+      "Mods"
     );
-    expect(store.get("default")).toEqual(DEFAULT_SETTINGS);
+    expect(getSettings(store, DEFAULT_SETTINGS, {}).modRole).toBe("Moderator");
   });
 
   test("writeSettings ignores empty ids and does not store them", () => {
@@ -161,5 +165,16 @@ describe("settings merge contract", () => {
     expect(writeSettings(store, { id: "" }, { modRole: "Mods" })).toEqual({});
     expect(store.has("")).toBe(false);
     expect(getSettings(store, DEFAULT_SETTINGS, "")).toEqual(DEFAULT_SETTINGS);
+  });
+
+  test("repairs a null default row instead of wiping role names", () => {
+    const store = memoryStore();
+    store.set("default", null);
+    store.set("guild-1", { modRole: "Mods" });
+    expect(getSettings(store, DEFAULT_SETTINGS, { id: "guild-1" })).toEqual({
+      ...DEFAULT_SETTINGS,
+      modRole: "Mods",
+    });
+    expect(store.get("default")).toEqual(DEFAULT_SETTINGS);
   });
 });

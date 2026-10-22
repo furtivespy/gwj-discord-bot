@@ -42,33 +42,29 @@ describe("/status", () => {
     ).toBe("Version: 1.2.3\nUptime: 1m 30s\nServers: 4");
   });
 
-  test("replies with the running version, uptime, and guild count", async () => {
+  test("replies with the running version, formatted uptime, and guild count", async () => {
     const status = new Status(statusClient({ serverCount: 3 }));
     const replies = [];
+    const originalUptime = process.uptime;
+    process.uptime = () => 90;
 
-    const before = process.uptime();
-    await status.execute({
-      client: statusClient({ serverCount: 3 }),
-      reply: async (payload) => {
-        replies.push(payload);
-      },
-    });
-    const after = process.uptime();
+    try {
+      await status.execute({
+        client: statusClient({ serverCount: 3 }),
+        reply: async (payload) => {
+          replies.push(payload);
+        },
+      });
+    } finally {
+      process.uptime = originalUptime;
+    }
 
     expect(replies).toHaveLength(1);
     expect(replies[0].flags).toBe(MessageFlags.Ephemeral);
-    expect(replies[0].content).toContain(`Version: ${version}`);
-    expect(replies[0].content).toContain("Servers: 3");
-
-    const uptimeLine = replies[0].content
-      .split("\n")
-      .find((line) => line.startsWith("Uptime: "));
-    const formatted = uptimeLine.slice("Uptime: ".length);
-    const possible = new Set();
-    for (let seconds = Math.floor(before); seconds <= Math.ceil(after); seconds += 1) {
-      possible.add(Status.formatUptime(seconds));
-    }
-    expect(possible.has(formatted)).toBe(true);
+    expect(replies[0].content).toBe(
+      `Version: ${version}\nUptime: 1m 30s\nServers: 3`
+    );
+    expect(replies[0].content).toContain(Status.formatUptime(90));
   });
 
   test("uses interaction.client when the command client has no guild cache", async () => {

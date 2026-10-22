@@ -1,5 +1,7 @@
 require("dotenv").config();
-require("./util/tracing").startTracing();
+const { startTracing, registerTracingShutdown } = require("./util/tracing");
+startTracing();
+registerTracingShutdown();
 const {
   Client,
   Collection,

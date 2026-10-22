@@ -2,9 +2,14 @@ const Bugsnag = require("@bugsnag/js");
 const chalk = require("chalk");
 const moment = require("moment");
 
+// config.json.sample uses this so copying the sample does not start Bugsnag.
+const PLACEHOLDER_BUGSNAG_KEYS = new Set(["abc123"]);
+
 function resolveApiKey(options = {}) {
   if (typeof options.apiKey !== "string") return "";
-  return options.apiKey.trim();
+  const apiKey = options.apiKey.trim();
+  if (!apiKey || PLACEHOLDER_BUGSNAG_KEYS.has(apiKey)) return "";
+  return apiKey;
 }
 
 function writeConsole(content, type = "log", location = "Unknown") {
@@ -132,5 +137,6 @@ function createLogger(options) {
 createLogger.BugsnagLogger = BugsnagLogger;
 createLogger.writeConsole = writeConsole;
 createLogger.resolveApiKey = resolveApiKey;
+createLogger.PLACEHOLDER_BUGSNAG_KEYS = PLACEHOLDER_BUGSNAG_KEYS;
 
 module.exports = createLogger;
