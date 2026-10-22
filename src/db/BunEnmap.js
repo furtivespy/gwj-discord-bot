@@ -103,14 +103,14 @@ class BunEnmap {
     if (pathKey) {
       const base = this.get(stringKey) || {};
       setPathValue(base, pathKey, value);
-      this.cache.set(stringKey, base);
       this._persist(stringKey, base);
+      this.cache.set(stringKey, base);
       return this;
     }
 
     const stored = this._cloneIfNeeded(value);
-    this.cache.set(stringKey, stored);
     this._persist(stringKey, stored);
+    this.cache.set(stringKey, stored);
     return this;
   }
 

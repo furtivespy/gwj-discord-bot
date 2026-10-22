@@ -8,28 +8,7 @@ const {
   getSettings,
   writeSettings,
 } = require("../src/util/settings.js");
-
-function memoryStore(initial = {}) {
-  const data = new Map(Object.entries(initial));
-  return {
-    get: (key) => data.get(String(key)),
-    set(key, value) {
-      data.set(String(key), value);
-      return this;
-    },
-    has: (key) => data.has(String(key)),
-    ensure(key, defaultValue) {
-      const stringKey = String(key);
-      if (!data.has(stringKey)) {
-        const value =
-          typeof defaultValue === "function" ? defaultValue() : { ...defaultValue };
-        data.set(stringKey, value);
-      }
-      return data.get(stringKey);
-    },
-    data,
-  };
-}
+const { memoryStore } = require("./helpers/memoryStore.js");
 
 describe("settings merge", () => {
   test("returns defaults when there is no guild or no override", () => {
@@ -137,6 +116,7 @@ describe("BunEnmap persistence", () => {
       );
     `);
     db.query("INSERT INTO enmap_store (key, value) VALUES (?, ?)").run("default", "{");
+    db.query("INSERT INTO enmap_store (key, value) VALUES (?, ?)").run("poison", "null");
     db.query("INSERT INTO enmap_store (key, value) VALUES (?, ?)").run(
       "guild-1",
       JSON.stringify({ modRole: "Mods" })
@@ -149,6 +129,7 @@ describe("BunEnmap persistence", () => {
       dataDir: poisonDir,
     });
     expect(store.has("default")).toBe(false);
+    expect(store.has("poison")).toBe(false);
     expect(getSettings(store, DEFAULT_SETTINGS, { id: "guild-1" })).toEqual({
       ...DEFAULT_SETTINGS,
       modRole: "Mods",

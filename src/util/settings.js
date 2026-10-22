@@ -23,6 +23,13 @@ function resolveGuildId(guild) {
   return String(guild);
 }
 
+function guildFromInteraction(interaction) {
+  if (!interaction) return null;
+  if (interaction.guild?.id) return interaction.guild;
+  const id = resolveGuildId(interaction.guildId);
+  return id ? { id } : null;
+}
+
 function storedObject(store, key) {
   const value = store.get(key);
   return isPlainObject(value) ? value : null;
@@ -72,6 +79,7 @@ module.exports = {
   SETTINGS_KEYS,
   resolveDefaults,
   resolveGuildId,
+  guildFromInteraction,
   getSettings,
   writeSettings,
   isKnownSettingKey,

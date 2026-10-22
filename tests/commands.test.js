@@ -5,6 +5,7 @@ import Settings from "../src/commands/slash/settings.js";
 import VoiceCreate from "../src/commands/slash/voiceCreate.js";
 import { FALLBACK_PARENT_ID } from "../src/util/onDemandVoice.js";
 import { DEFAULT_SETTINGS, getSettings, writeSettings } from "../src/util/settings.js";
+import { memoryStore } from "./helpers/memoryStore.js";
 
 function silentLogger() {
   return {
@@ -156,29 +157,6 @@ describe("/voice-create", () => {
     expect(create.calls[0].parent).toBe(FALLBACK_PARENT_ID);
   });
 });
-
-function memoryStore(initial = {}) {
-  const data = new Map(Object.entries(initial));
-  return {
-    get: (key) => data.get(String(key)),
-    set(key, value) {
-      data.set(String(key), value);
-      return this;
-    },
-    has: (key) => data.has(String(key)),
-    ensure(key, defaultValue) {
-      const stringKey = String(key);
-      if (!data.has(stringKey)) {
-        data.set(
-          stringKey,
-          typeof defaultValue === "function" ? defaultValue() : { ...defaultValue }
-        );
-      }
-      return data.get(stringKey);
-    },
-    data,
-  };
-}
 
 function settingsClient() {
   const store = memoryStore({ default: { ...DEFAULT_SETTINGS } });

@@ -98,6 +98,12 @@ describe("permission levels", () => {
     expect(permlevel(permLevels, ctx)).toBe(2);
   });
 
+  test("treats an array of role objects as role ids", () => {
+    const ctx = context();
+    ctx.member = { roles: [{ id: ROLES.mod.id, name: "Moderator" }] };
+    expect(permlevel(permLevels, ctx)).toBe(2);
+  });
+
   test("resolves Bot Owner from application.owner when botOwnerId is unset", () => {
     expect(
       permlevel(
@@ -166,5 +172,16 @@ describe("command permission checks", () => {
       command: { conf: { permLevel: "User" } },
     });
     expect(result.allowed).toBe(true);
+  });
+
+  test("an unknown permLevel name does not collapse to User", () => {
+    const result = checkCommandPermission({
+      permLevels,
+      levelCache,
+      context: context(),
+      command: { conf: { permLevel: "Administrater" } },
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.required).toBe(Number.POSITIVE_INFINITY);
   });
 });

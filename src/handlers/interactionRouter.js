@@ -4,7 +4,7 @@ const {
   permissionContext,
   shouldSendPermissionNotice,
 } = require("../util/permissions.js");
-const { resolveGuildId } = require("../util/settings.js");
+const { guildFromInteraction } = require("../util/settings.js");
 
 const COMMAND_ERROR = "There was an error while executing this command!";
 const BUTTON_ERROR = "There was an error while processing this button!";
@@ -108,15 +108,9 @@ async function sendErrorReply(interaction, content) {
   });
 }
 
-function guildForSettings(interaction) {
-  if (interaction.guild) return interaction.guild;
-  const guildId = resolveGuildId(interaction.guildId);
-  return guildId ? { id: guildId } : null;
-}
-
 function attachSettings(client, interaction) {
   if (typeof client.getSettings !== "function") return null;
-  const settings = client.getSettings(guildForSettings(interaction));
+  const settings = client.getSettings(guildFromInteraction(interaction));
   interaction.settings = settings;
   return settings;
 }

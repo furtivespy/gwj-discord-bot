@@ -391,7 +391,7 @@ describe("interaction router", () => {
         async execute() {},
       },
     });
-    client.getSettings = () => ({ ...DEFAULT_SETTINGS, systemNotice: "false" });
+    client.getSettings = () => ({ ...DEFAULT_SETTINGS, systemNotice: false });
 
     const result = await routeInteraction(
       client,

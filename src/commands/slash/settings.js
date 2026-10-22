@@ -7,6 +7,7 @@ const SlashCommand = require("../../base/SlashCommand.js");
 const {
   DEFAULT_SETTINGS,
   SETTINGS_KEYS,
+  guildFromInteraction,
   isKnownSettingKey,
 } = require("../../util/settings.js");
 
@@ -75,7 +76,7 @@ class Settings extends SlashCommand {
     }
 
     const subcommand = interaction.options.getSubcommand();
-    const guild = interaction.guild || { id: interaction.guildId };
+    const guild = guildFromInteraction(interaction);
     const settings = this.client.getSettings(guild);
     const defaults = this.client.settings?.get("default") || DEFAULT_SETTINGS;
 

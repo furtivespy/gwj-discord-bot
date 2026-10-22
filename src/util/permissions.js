@@ -6,12 +6,11 @@ function buildLevelCache(permLevels) {
   return cache;
 }
 
+const { guildFromInteraction } = require("./settings.js");
+
 function permissionContext(interaction, settings) {
-  const guild =
-    interaction.guild ||
-    (interaction.guildId ? { id: interaction.guildId } : null);
   return {
-    guild,
+    guild: guildFromInteraction(interaction),
     member: interaction.member,
     author: interaction.user,
     user: interaction.user,
@@ -40,7 +39,11 @@ function commandPermLevelName(command) {
 function commandRequiredLevel(levelCache, command) {
   const name = commandPermLevelName(command);
   if (!levelCache) return 0;
-  return levelCache[name] ?? 0;
+  if (Object.prototype.hasOwnProperty.call(levelCache, name)) {
+    return levelCache[name];
+  }
+  // Unknown names must not collapse to User (allow everyone).
+  return Number.POSITIVE_INFINITY;
 }
 
 function levelName(permLevels, level) {
@@ -53,8 +56,17 @@ Your permission level is ${level} (${levelName(permLevels, level)})
 This command requires level ${required} (${requiredName})`;
 }
 
+function isEnabledFlag(raw, defaultValue = true) {
+  if (raw == null || raw === "") return defaultValue;
+  if (raw === true || raw === false) return raw;
+  const normalized = String(raw).trim().toLowerCase();
+  if (["false", "off", "0", "no"].includes(normalized)) return false;
+  if (["true", "on", "1", "yes"].includes(normalized)) return true;
+  return defaultValue;
+}
+
 function shouldSendPermissionNotice(settings) {
-  return settings?.systemNotice !== "false";
+  return isEnabledFlag(settings?.systemNotice, true);
 }
 
 function checkCommandPermission({
@@ -84,6 +96,7 @@ module.exports = {
   commandRequiredLevel,
   levelName,
   permissionDeniedMessage,
+  isEnabledFlag,
   shouldSendPermissionNotice,
   checkCommandPermission,
 };

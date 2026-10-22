@@ -11,17 +11,23 @@ function findRoleByName(guild, roleName) {
   return roles.find((role) => String(role.name).toLowerCase() === wanted) || null;
 }
 
+function roleIdOf(role) {
+  if (role == null) return null;
+  if (typeof role === "object") return role.id != null ? String(role.id) : null;
+  return String(role);
+}
+
 function memberHasRole(member, roleId) {
   if (!member || roleId == null || roleId === "") return false;
   const wanted = String(roleId);
   const roles = member.roles;
   if (!roles) return false;
   if (Array.isArray(roles)) {
-    return roles.map(String).includes(wanted);
+    return roles.some((role) => roleIdOf(role) === wanted);
   }
   const cache = roleCollection(roles) || roles;
   if (Array.isArray(cache)) {
-    return cache.some((role) => String(role?.id ?? role) === wanted);
+    return cache.some((role) => roleIdOf(role) === wanted);
   }
   if (typeof cache.has === "function") {
     return cache.has(roleId) || cache.has(wanted);
