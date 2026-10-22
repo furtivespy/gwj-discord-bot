@@ -10,20 +10,48 @@ function resolveDefaults(defaultSettings = DEFAULT_SETTINGS) {
   return { ...DEFAULT_SETTINGS, ...(defaultSettings || {}) };
 }
 
+function isPlainObject(value) {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function resolveGuildId(guild) {
+  if (guild == null || guild === "") return null;
+  if (typeof guild === "object") {
+    const id = guild.id ?? guild.guildId;
+    return id ? String(id) : null;
+  }
+  return String(guild);
+}
+
+function storedObject(store, key) {
+  const value = store.get(key);
+  return isPlainObject(value) ? value : null;
+}
+
+function storedDefaults(store, defaultSettings) {
+  const fallback = resolveDefaults(defaultSettings);
+  const existing = storedObject(store, "default");
+  if (!existing) {
+    store.set("default", fallback);
+    return fallback;
+  }
+  return { ...fallback, ...existing };
+}
+
 function getSettings(store, defaultSettings, guild) {
-  const defaults = resolveDefaults(defaultSettings);
-  store.ensure("default", defaults);
-  if (!guild) return store.get("default");
-  const guildId = typeof guild === "object" ? guild.id : guild;
-  const guildConf = store.get(guildId) || {};
-  return { ...store.get("default"), ...guildConf };
+  const defaults = storedDefaults(store, defaultSettings);
+  const guildId = resolveGuildId(guild);
+  if (!guildId) return { ...defaults };
+  const guildConf = storedObject(store, guildId) || {};
+  return { ...defaults, ...guildConf };
 }
 
 function writeSettings(store, id, newSettings) {
-  const defaults = store.get("default") || resolveDefaults();
-  let settings = store.get(id);
-  if (typeof settings !== "object" || settings === null) settings = {};
-  else settings = { ...settings };
+  const guildId = resolveGuildId(id);
+  if (!guildId) return {};
+  const defaults = storedDefaults(store);
+  let settings = storedObject(store, guildId) || {};
+  settings = { ...settings };
   for (const key in newSettings) {
     if (defaults[key] !== newSettings[key]) {
       settings[key] = newSettings[key];
@@ -31,7 +59,7 @@ function writeSettings(store, id, newSettings) {
       delete settings[key];
     }
   }
-  store.set(id, settings);
+  store.set(guildId, settings);
   return settings;
 }
 
@@ -43,6 +71,7 @@ module.exports = {
   DEFAULT_SETTINGS,
   SETTINGS_KEYS,
   resolveDefaults,
+  resolveGuildId,
   getSettings,
   writeSettings,
   isKnownSettingKey,

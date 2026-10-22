@@ -242,6 +242,38 @@ describe("/settings", () => {
     expect(replies[1].content).toBe("modRole is currently `Cool Mods`");
   });
 
+  test("set uses guildId when interaction.guild is missing", async () => {
+    const client = settingsClient();
+    client.writeSettings("guild-1", { modRole: "Night Watch" });
+    const command = new Settings(client);
+    const replies = [];
+
+    await command.execute({
+      guildId: "guild-1",
+      guild: null,
+      options: {
+        getSubcommand: () => "set",
+        getString: (name) => (name === "key" ? "modRole" : "Night Watch"),
+      },
+      reply: async (payload) => replies.push(payload),
+    });
+
+    expect(client.getSettings("guild-1").modRole).toBe("Night Watch");
+    expect(replies[0].content).toBe("modRole already has that value.");
+
+    await command.execute({
+      guildId: "guild-1",
+      guild: null,
+      options: {
+        getSubcommand: () => "set",
+        getString: (name) => (name === "key" ? "modRole" : "Staff"),
+      },
+      reply: async (payload) => replies.push(payload),
+    });
+    expect(client.getSettings("guild-1").modRole).toBe("Staff");
+    expect(replies[1].content).toBe("modRole set to `Staff`");
+  });
+
   test("reset restores the default and drops the override", async () => {
     const client = settingsClient();
     client.writeSettings("guild-1", { adminRole: "Admins" });

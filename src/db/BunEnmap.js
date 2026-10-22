@@ -34,17 +34,9 @@ function deletePathValue(target, dotPath) {
 
 function parseStoredValue(rawValue) {
   if (rawValue === null || rawValue === undefined) {
-    return { value: null, normalized: "null" };
+    throw new Error("empty enmap value");
   }
-
-  try {
-    return { value: JSON.parse(rawValue), normalized: null };
-  } catch {
-    // Legacy Enmap used serialize-javascript; those rows may include undefined/new Date().
-    // We trust this local DB data and normalize to strict JSON after parsing once.
-    const parsed = Function(`"use strict"; return (${rawValue});`)();
-    return { value: parsed, normalized: JSON.stringify(parsed) };
-  }
+  return JSON.parse(rawValue);
 }
 
 class BunEnmap {
@@ -69,18 +61,11 @@ class BunEnmap {
     `);
 
     const rows = this.db.query("SELECT key, value FROM enmap_store").all();
-    const normalize = this.db.query(
-      "UPDATE enmap_store SET value = ? WHERE key = ?"
-    );
     for (const row of rows) {
       try {
-        const parsed = parseStoredValue(row.value);
-        this.cache.set(row.key, parsed.value);
-        if (parsed.normalized !== null) {
-          normalize.run(parsed.normalized, row.key);
-        }
+        this.cache.set(row.key, parseStoredValue(row.value));
       } catch {
-        this.cache.set(row.key, null);
+        // Skip unreadable rows. Caching null would make ensure() skip repair.
       }
     }
   }
@@ -118,8 +103,9 @@ class BunEnmap {
       return this;
     }
 
-    this.cache.set(stringKey, value);
-    this._persist(stringKey, value);
+    const stored = this._cloneIfNeeded(value);
+    this.cache.set(stringKey, stored);
+    this._persist(stringKey, stored);
     return this;
   }
 
@@ -206,8 +192,8 @@ class BunEnmap {
   close() {
     try {
       this.db.exec("PRAGMA wal_checkpoint(TRUNCATE)");
-    } catch {
-      // Best-effort flush; still close the connection.
+    } catch (error) {
+      console.error(`WAL checkpoint failed for ${this.name}:`, error);
     }
     this.db.close();
   }

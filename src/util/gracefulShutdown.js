@@ -1,11 +1,4 @@
-const STORE_KEYS = [
-  "settings",
-  "exclusions",
-  "gamedata",
-  "guilddata",
-  "reminders",
-  "userPreferences",
-];
+const STORE_KEYS = ["settings"];
 
 function collectStores(client) {
   const stores = [];

@@ -63,7 +63,7 @@ function clientWithCommands(commands, logger = silentLogger(), extras = {}) {
   return { slash_commands: collection, logger, ...extras };
 }
 
-function permissionClient(commands, logger = silentLogger()) {
+function permissionClient(commands, logger = silentLogger(), guildStore = {}) {
   const levelCache = buildLevelCache(permLevels);
   return clientWithCommands(commands, logger, {
     permLevels,
@@ -71,8 +71,9 @@ function permissionClient(commands, logger = silentLogger()) {
     permlevel(context) {
       return permlevel(permLevels, context);
     },
-    getSettings() {
-      return { ...DEFAULT_SETTINGS };
+    getSettings(guild) {
+      const id = guild?.id ?? guild;
+      return { ...DEFAULT_SETTINGS, ...(guildStore[id] || {}) };
     },
   });
 }
@@ -380,7 +381,7 @@ describe("interaction router", () => {
     expect(executed).toEqual(["ran"]);
   });
 
-  test("stays silent when systemNotice is false", async () => {
+  test("still acks when systemNotice is false so Discord does not show a failure", async () => {
     const replies = [];
     const client = permissionClient({
       lock: {
@@ -401,6 +402,65 @@ describe("interaction router", () => {
       })
     );
 
-    expect(replies).toEqual([]);
+    expect(replies).toEqual([
+      {
+        content: "You do not have permission to use this command.",
+        flags: MessageFlags.Ephemeral,
+      },
+    ]);
+  });
+
+  test("loads guild settings from guildId when interaction.guild is missing", async () => {
+    const seen = [];
+    const client = permissionClient(
+      {
+        ping: {
+          conf: { permLevel: "User" },
+          async execute(interaction) {
+            seen.push(interaction.settings.modRole);
+          },
+        },
+      },
+      silentLogger(),
+      { "guild-1": { modRole: "Night Watch" } }
+    );
+
+    await routeInteraction(
+      client,
+      baseInteraction({
+        isCommand: () => true,
+        commandName: "ping",
+        guild: null,
+        guildId: "guild-1",
+      })
+    );
+
+    expect(seen).toEqual(["Night Watch"]);
+  });
+
+  test("allows a mod whose roles arrived as a snowflake array", async () => {
+    const executed = [];
+    const client = permissionClient({
+      lock: {
+        conf: { permLevel: "Moderator" },
+        async execute() {
+          executed.push("ran");
+        },
+      },
+    });
+
+    const result = await routeInteraction(
+      client,
+      baseInteraction({
+        isCommand: () => true,
+        commandName: "lock",
+        guild: guildWithRoles(),
+        member: { roles: ["role-mod"] },
+        user: { id: "user-1" },
+      })
+    );
+
+    expect(result.denied).toBeUndefined();
+    expect(executed).toEqual(["ran"]);
   });
 });

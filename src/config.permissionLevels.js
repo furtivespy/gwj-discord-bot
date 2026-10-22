@@ -4,7 +4,7 @@ function roleCollection(manager) {
 }
 
 function findRoleByName(guild, roleName) {
-  if (!guild || !roleName) return null;
+  if (!guild || roleName == null || roleName === "") return null;
   const roles = roleCollection(guild.roles);
   if (!roles || typeof roles.find !== "function") return null;
   const wanted = String(roleName).toLowerCase();
@@ -12,12 +12,30 @@ function findRoleByName(guild, roleName) {
 }
 
 function memberHasRole(member, roleId) {
-  if (!member || !roleId) return false;
-  const roles = roleCollection(member.roles) || member.roles;
-  if (roles && typeof roles.has === "function") {
-    return roles.has(roleId);
+  if (!member || roleId == null || roleId === "") return false;
+  const wanted = String(roleId);
+  const roles = member.roles;
+  if (!roles) return false;
+  if (Array.isArray(roles)) {
+    return roles.map(String).includes(wanted);
+  }
+  const cache = roleCollection(roles) || roles;
+  if (Array.isArray(cache)) {
+    return cache.some((role) => String(role?.id ?? role) === wanted);
+  }
+  if (typeof cache.has === "function") {
+    return cache.has(roleId) || cache.has(wanted);
   }
   return false;
+}
+
+function hasNamedRole(context, settingKey) {
+  try {
+    const role = findRoleByName(context.guild, context.settings?.[settingKey]);
+    return Boolean(role && memberHasRole(context.member, role.id));
+  } catch {
+    return false;
+  }
 }
 
 function userIdFrom(context) {
@@ -36,27 +54,13 @@ module.exports = [
   {
     level: 2,
     name: "Moderator",
-    check: (context) => {
-      try {
-        const modRole = findRoleByName(context.guild, context.settings?.modRole);
-        return Boolean(modRole && memberHasRole(context.member, modRole.id));
-      } catch {
-        return false;
-      }
-    },
+    check: (context) => hasNamedRole(context, "modRole"),
   },
 
   {
     level: 3,
     name: "Administrator",
-    check: (context) => {
-      try {
-        const adminRole = findRoleByName(context.guild, context.settings?.adminRole);
-        return Boolean(adminRole && memberHasRole(context.member, adminRole.id));
-      } catch {
-        return false;
-      }
-    },
+    check: (context) => hasNamedRole(context, "adminRole"),
   },
 
   {
@@ -86,7 +90,9 @@ module.exports = [
     check: (context) => {
       const userId = userIdFrom(context);
       const ownerId =
-        context.client?.config?.botOwnerId || context.client?.appInfo?.owner?.id;
+        context.client?.config?.botOwnerId ||
+        context.client?.appInfo?.owner?.id ||
+        context.client?.application?.owner?.id;
       return Boolean(ownerId && userId && ownerId === userId);
     },
   },

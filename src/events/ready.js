@@ -13,6 +13,13 @@ class Ready extends Event {
   }
 
   async run() {
+    try {
+      if (this.client.application?.fetch) {
+        this.client.appInfo = await this.client.application.fetch();
+      }
+    } catch (error) {
+      this.client.logger?.error(error, "ready.js");
+    }
     this.client.logger.ready("Ready!");
   }
 }

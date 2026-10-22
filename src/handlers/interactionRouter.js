@@ -4,6 +4,7 @@ const {
   permissionContext,
   shouldSendPermissionNotice,
 } = require("../util/permissions.js");
+const { resolveGuildId } = require("../util/settings.js");
 
 const COMMAND_ERROR = "There was an error while executing this command!";
 const BUTTON_ERROR = "There was an error while processing this button!";
@@ -107,9 +108,15 @@ async function sendErrorReply(interaction, content) {
   });
 }
 
+function guildForSettings(interaction) {
+  if (interaction.guild) return interaction.guild;
+  const guildId = resolveGuildId(interaction.guildId);
+  return guildId ? { id: guildId } : null;
+}
+
 function attachSettings(client, interaction) {
   if (typeof client.getSettings !== "function") return null;
-  const settings = client.getSettings(interaction.guild);
+  const settings = client.getSettings(guildForSettings(interaction));
   interaction.settings = settings;
   return settings;
 }
@@ -136,8 +143,11 @@ async function denyPermission(interaction, kind, permission) {
     }
     return;
   }
-  if (!shouldSendPermissionNotice(interaction.settings)) return;
-  await sendErrorReply(interaction, permission.message);
+  // Slash/component interactions must be acked. systemNotice only controls detail.
+  const content = shouldSendPermissionNotice(interaction.settings)
+    ? permission.message
+    : "You do not have permission to use this command.";
+  await sendErrorReply(interaction, content);
 }
 
 async function dispatch(command, interaction, kind) {

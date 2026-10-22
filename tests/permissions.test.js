@@ -91,6 +91,24 @@ describe("permission levels", () => {
       )
     ).toBe(2);
   });
+
+  test("treats APIInteractionGuildMember.roles as a snowflake array", () => {
+    const ctx = context();
+    ctx.member = { roles: [ROLES.mod.id] };
+    expect(permlevel(permLevels, ctx)).toBe(2);
+  });
+
+  test("resolves Bot Owner from application.owner when botOwnerId is unset", () => {
+    expect(
+      permlevel(
+        permLevels,
+        context({
+          userId: "boss",
+          client: { application: { owner: { id: "boss" } } },
+        })
+      )
+    ).toBe(10);
+  });
 });
 
 describe("command permission checks", () => {

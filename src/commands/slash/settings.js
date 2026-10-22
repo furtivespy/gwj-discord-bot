@@ -10,6 +10,14 @@ const {
   isKnownSettingKey,
 } = require("../../util/settings.js");
 
+function addKeyOption(option, description) {
+  return option
+    .setName("key")
+    .setDescription(description)
+    .setRequired(true)
+    .addChoices(...SETTINGS_KEYS.map((key) => ({ name: key, value: key })));
+}
+
 class Settings extends SlashCommand {
   constructor(client) {
     super(client, {
@@ -31,25 +39,13 @@ class Settings extends SlashCommand {
         subcommand
           .setName("get")
           .setDescription("Show one setting")
-          .addStringOption((option) =>
-            option
-              .setName("key")
-              .setDescription("Setting to view")
-              .setRequired(true)
-              .addChoices(...SETTINGS_KEYS.map((key) => ({ name: key, value: key })))
-          )
+          .addStringOption((option) => addKeyOption(option, "Setting to view"))
       )
       .addSubcommand((subcommand) =>
         subcommand
           .setName("set")
           .setDescription("Override a setting for this server")
-          .addStringOption((option) =>
-            option
-              .setName("key")
-              .setDescription("Setting to change")
-              .setRequired(true)
-              .addChoices(...SETTINGS_KEYS.map((key) => ({ name: key, value: key })))
-          )
+          .addStringOption((option) => addKeyOption(option, "Setting to change"))
           .addStringOption((option) =>
             option
               .setName("value")
@@ -61,13 +57,7 @@ class Settings extends SlashCommand {
         subcommand
           .setName("reset")
           .setDescription("Reset a setting to the bot default")
-          .addStringOption((option) =>
-            option
-              .setName("key")
-              .setDescription("Setting to reset")
-              .setRequired(true)
-              .addChoices(...SETTINGS_KEYS.map((key) => ({ name: key, value: key })))
-          )
+          .addStringOption((option) => addKeyOption(option, "Setting to reset"))
       );
   }
 
@@ -85,7 +75,8 @@ class Settings extends SlashCommand {
     }
 
     const subcommand = interaction.options.getSubcommand();
-    const settings = this.client.getSettings(interaction.guild);
+    const guild = interaction.guild || { id: interaction.guildId };
+    const settings = this.client.getSettings(guild);
     const defaults = this.client.settings?.get("default") || DEFAULT_SETTINGS;
 
     if (subcommand === "show") {

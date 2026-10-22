@@ -7,8 +7,11 @@ function buildLevelCache(permLevels) {
 }
 
 function permissionContext(interaction, settings) {
+  const guild =
+    interaction.guild ||
+    (interaction.guildId ? { id: interaction.guildId } : null);
   return {
-    guild: interaction.guild,
+    guild,
     member: interaction.member,
     author: interaction.user,
     user: interaction.user,

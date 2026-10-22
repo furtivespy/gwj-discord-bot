@@ -124,6 +124,21 @@ describe("event handler", () => {
     );
   });
 
+  test("ready fetches application into appInfo for Bot Owner checks", async () => {
+    const client = fakeClient();
+    loadEvents(client);
+    const appInfo = { owner: { id: "boss" } };
+    client.application = {
+      async fetch() {
+        return appInfo;
+      },
+    };
+
+    await client.registered.ready.handler();
+
+    expect(client.appInfo).toBe(appInfo);
+  });
+
   test("interactionCreate routes a ping button through the loaded command", async () => {
     const client = fakeClient();
     loadSlashCommands.loadSlashCommands(client);
