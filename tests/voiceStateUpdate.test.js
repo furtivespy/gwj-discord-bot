@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import voiceStateUpdate from "../src/events/voiceStateUpdate.js";
+import VoiceStateUpdate from "../src/events/voiceStateUpdate.js";
 
 function silentLogger() {
   return {
@@ -9,12 +9,14 @@ function silentLogger() {
     debug() {},
     cmd() {},
     ready() {},
+    time() {},
   };
 }
 
 describe("voiceStateUpdate auto-cleanup", () => {
-  test("deletes an empty on-demand voice channel", () => {
+  test("deletes an empty on-demand voice channel", async () => {
     const deleted = [];
+    const event = new VoiceStateUpdate({ logger: silentLogger() });
     const oldState = {
       channelId: "voice-1",
       channel: {
@@ -26,15 +28,14 @@ describe("voiceStateUpdate auto-cleanup", () => {
       },
     };
 
-    voiceStateUpdate({ logger: silentLogger() }, oldState, {
-      channelId: "lobby",
-    });
+    await event.run(oldState, { channelId: "lobby" });
 
     expect(deleted).toEqual(["voice-1"]);
   });
 
-  test("leaves occupied or non-on-demand channels alone", () => {
+  test("leaves occupied or non-on-demand channels alone", async () => {
     const deleted = [];
+    const event = new VoiceStateUpdate({ logger: silentLogger() });
     const occupied = {
       channelId: "voice-1",
       channel: {
@@ -46,11 +47,8 @@ describe("voiceStateUpdate auto-cleanup", () => {
       },
     };
 
-    voiceStateUpdate({ logger: silentLogger() }, occupied, {
-      channelId: "lobby",
-    });
-    voiceStateUpdate(
-      { logger: silentLogger() },
+    await event.run(occupied, { channelId: "lobby" });
+    await event.run(
       {
         channelId: "perm-1",
         channel: {

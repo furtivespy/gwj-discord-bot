@@ -17,6 +17,19 @@ Stancy Bot - A Voice Channel Creation Bot for Gamers With Jobs
 
 Required config keys (same as today): `token`, `clientId`, `bugsnagKey`, `environment`.
 
+Optional:
+
+* `DEV_GUILD_ID` (env) or `devGuildId` (config) — register slash commands to this guild instead of globally. Instant updates while developing. If `environment` is `development` and neither is set, Stancy still uses the historical GWJ test guild `545109131330191371` so existing deploys keep working.
+
+## Adding a command or event
+
+Adding a `.js` file under `src/commands/slash` or `src/events` (including subfolders) is the only step to add a feature. The loaders auto-discover files, instantiate the exported class, and log each load.
+
+* Slash commands extend `src/base/SlashCommand.js`, set `this.data` (`SlashCommandBuilder`), and implement `execute`. Optional hooks: `autocomplete`, `button`, `selectMenu`, `modal`.
+* Events extend `src/base/Event.js`, set `eventType` from `src/base/EventTypes.js`, and implement `run(...)`.
+
+Buttons, select menus, and modals are routed to the command whose name is the `customId` prefix before `:`. Example: `ping:again` is handled by `/ping`. `/ping` includes a sample **Again** button that proves this path (the same prefix routing a drop "In" button will use).
+
 ## Container deploy
 
 Stancy is built with Bun and published to Will's registry as **`gitea.willsullivan.dev/furtivespy/stancy-bot`**.
@@ -36,6 +49,7 @@ The image expects the same runtime config as the old Fly app:
 
 * Volume mounted at `/data`
 * `BOT_CONFIG` (defaults to `/data/config.json` in the image) — put `config.json` on that volume
+* Optional `DEV_GUILD_ID` — guild-scoped slash command registration (see above)
 * No new required environment variables
 
 Example:
@@ -52,6 +66,7 @@ docker run -d --name stancy-bot \
 
 * `/voice-create` - creates a voice channel in a sub-category called "on-demand voice"
 * Watches voiceStateUpdate event to see if channel in that "on-demand voice" category is empty
+* `/ping` - replies with Pong and an **Again** button (proves component routing)
 
 
 #### Come [join us on discord](https://discord.com/invite/HfYNSdP)!

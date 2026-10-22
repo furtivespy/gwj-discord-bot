@@ -1,18 +1,21 @@
-const { MessageFlags } = require("discord.js");
+const Event = require("../base/Event.js");
+const EventTypes = require("../base/EventTypes.js");
+const { routeInteraction } = require("../handlers/interactionRouter");
 
-module.exports = (botClient, ...eventData) => {
-  const [interaction] = eventData;
-  if (!interaction.isCommand()) return;
-  const command = botClient.slash_commands.get(interaction.commandName);
-  if (!command) return;
-  try {
-    botClient.logger.cmd(interaction.commandName);
-    command.execute(interaction, botClient);
-  } catch (error) {
-    botClient.logger.error(error, "interactionCreate.js");
-    return interaction.reply({
-      content: "There was an error while executing this command!",
-      flags: MessageFlags.Ephemeral,
+class InteractionCreate extends Event {
+  constructor(client) {
+    super(client, {
+      name: "interactionCreate",
+      eventType: EventTypes.INTERACTION_CREATE,
+      description:
+        "Routes slash commands, autocomplete, buttons, select menus, and modals.",
+      enabled: true,
     });
   }
-};
+
+  async run(interaction) {
+    await routeInteraction(this.client, interaction);
+  }
+}
+
+module.exports = InteractionCreate;
