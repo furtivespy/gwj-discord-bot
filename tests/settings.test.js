@@ -11,6 +11,16 @@ const {
 const { memoryStore } = require("./helpers/memoryStore.js");
 
 describe("settings merge", () => {
+  test("uses the SQLite settings module from main", () => {
+    expect(typeof getSettings).toBe("function");
+    expect(typeof writeSettings).toBe("function");
+    expect(DEFAULT_SETTINGS).toEqual({
+      modRole: "Moderator",
+      adminRole: "Administrator",
+      systemNotice: "true",
+    });
+  });
+
   test("returns defaults when there is no guild or no override", () => {
     const store = memoryStore();
     expect(getSettings(store, DEFAULT_SETTINGS)).toEqual(DEFAULT_SETTINGS);
@@ -44,11 +54,22 @@ describe("settings merge", () => {
     );
   });
 
-  test("accepts a guild id string and ignores objects with no id", () => {
+  test("accepts a guild id string, guild.guildId, and ignores objects with no id", () => {
     const store = memoryStore({ default: { ...DEFAULT_SETTINGS } });
     writeSettings(store, "guild-1", { modRole: "Mods" });
     expect(getSettings(store, DEFAULT_SETTINGS, "guild-1").modRole).toBe("Mods");
+    expect(getSettings(store, DEFAULT_SETTINGS, { guildId: "guild-1" }).modRole).toBe(
+      "Mods"
+    );
     expect(getSettings(store, DEFAULT_SETTINGS, {}).modRole).toBe("Moderator");
+  });
+
+  test("writeSettings ignores empty ids and does not store them", () => {
+    const store = memoryStore({ default: { ...DEFAULT_SETTINGS } });
+    expect(writeSettings(store, "", { modRole: "Mods" })).toEqual({});
+    expect(writeSettings(store, { id: "" }, { modRole: "Mods" })).toEqual({});
+    expect(store.has("")).toBe(false);
+    expect(getSettings(store, DEFAULT_SETTINGS, "")).toEqual(DEFAULT_SETTINGS);
   });
 
   test("repairs a null default row instead of wiping role names", () => {
@@ -59,6 +80,7 @@ describe("settings merge", () => {
       ...DEFAULT_SETTINGS,
       modRole: "Mods",
     });
+    expect(store.get("default")).toEqual(DEFAULT_SETTINGS);
   });
 });
 
@@ -186,5 +208,21 @@ describe("BunEnmap persistence", () => {
     expect(getSettings(store, DEFAULT_SETTINGS).modRole).toBe("Moderator");
     store.close();
     fs.rmSync(evalDir, { recursive: true, force: true });
+  });
+
+  test("guild.guildId and empty ids work against the SQLite store", () => {
+    const store = new BunEnmap({
+      name: "settings",
+      cloneLevel: "deep",
+      dataDir,
+    });
+    store.ensure("default", DEFAULT_SETTINGS);
+    writeSettings(store, "guild-1", { modRole: "Night Watch" });
+    expect(getSettings(store, DEFAULT_SETTINGS, { guildId: "guild-1" }).modRole).toBe(
+      "Night Watch"
+    );
+    expect(writeSettings(store, "", { modRole: "Mods" })).toEqual({});
+    expect(store.has("")).toBe(false);
+    store.close();
   });
 });

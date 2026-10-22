@@ -1,5 +1,11 @@
 require("dotenv").config();
 const path = require("path");
+const { startTracing } = require("./util/tracing");
+try {
+  startTracing();
+} catch (err) {
+  console.warn("[tracing] failed to start — continuing without traces:", err);
+}
 const {
   Client,
   Collection,

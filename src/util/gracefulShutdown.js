@@ -1,3 +1,5 @@
+const { shutdownTracing } = require("./tracing");
+
 const STORE_KEYS = ["settings"];
 
 function collectStores(client) {
@@ -31,7 +33,11 @@ function closeStores(client) {
   return closed;
 }
 
-function gracefulShutdown(client, signal, { exit = process.exit } = {}) {
+async function gracefulShutdown(
+  client,
+  signal,
+  { exit = process.exit, flushTracing = shutdownTracing } = {}
+) {
   const line = `Received ${signal}, shutting down…`;
   if (typeof client?.logger?.warn === "function") {
     client.logger.warn(line, "gracefulShutdown");
@@ -41,13 +47,26 @@ function gracefulShutdown(client, signal, { exit = process.exit } = {}) {
     console.warn(line);
   }
   closeStores(client);
+  try {
+    if (typeof flushTracing === "function") {
+      await flushTracing();
+    }
+  } catch (error) {
+    console.error("[tracing] shutdown failed:", error);
+  }
   exit(0);
 }
 
-function registerShutdownHandlers(client, { processRef = process } = {}) {
-  const handler = (signal) => gracefulShutdown(client, signal);
-  processRef.on("SIGTERM", handler);
-  processRef.on("SIGINT", handler);
+function registerShutdownHandlers(client, { processRef = process, ...shutdownOptions } = {}) {
+  let shuttingDown = false;
+  const handler = (signal) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    return gracefulShutdown(client, signal, shutdownOptions);
+  };
+  const bind = typeof processRef.once === "function" ? "once" : "on";
+  processRef[bind]("SIGTERM", handler);
+  processRef[bind]("SIGINT", handler);
   return handler;
 }
 

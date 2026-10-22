@@ -15,14 +15,19 @@ Stancy Bot - A Voice Channel Creation Bot for Gamers With Jobs
 * Run the bot: `bun run start`
 * Run tests: `bun test`
 
-Required config keys (same as today): `token`, `clientId`, `bugsnagKey`, `environment`.
+Required config keys: `token`, `clientId`, `environment`.
 
 Optional:
 
+* `bugsnagKey` (config) — when set, `error` logs are reported to Bugsnag. When unset, blank, or the `config.json.sample` placeholder `abc123`, the logger stays on the console only (Game Bot's `BugsnagLogger` with a console fallback).
 * `defaultSettings` — per-server defaults (`modRole`, `adminRole`, `systemNotice`) merged with guild overrides stored in SQLite
 * `botOwnerId` — Discord user id treated as Bot Owner for permission checks. If unset, the Discord application owner (fetched on ready) is used.
 * `STANCY_DATA_DIR` (env) — local directory for SQLite files (defaults to `./data`). In a container this is always `/data`.
 * `DEV_GUILD_ID` (env) or `devGuildId` (config) — register slash commands to this guild instead of globally. Instant updates while developing. If `environment` is `development` and neither is set, Stancy still uses the historical GWJ test guild `545109131330191371` so existing deploys keep working.
+* `OTEL_EXPORTER_OTLP_ENDPOINT` (env) — optional OpenTelemetry. Tracing is off unless this endpoint is set. Same shape as Game Bot's `tracing.js`, but gated on an OTLP URL instead of a Honeycomb API key.
+* `OTEL_SERVICE_NAME` (env) — defaults to `stancy-bot` (passed into the OpenTelemetry SDK as the service name / resource, not only logged). SIGTERM/SIGINT close SQLite stores, then flush traces when tracing is enabled, then exit. Tracing does not install its own signal handlers, so store close always owns process lifetime.
+* `OTEL_EXPORTER_OTLP_HEADERS` (env) — comma-separated `key=value` headers for the exporter (for Honeycomb: `x-honeycomb-team=YOUR_API_KEY` and endpoint `https://api.honeycomb.io/v1/traces`).
+* `OTEL_DEBUG_SPANS` (env) — set to `true` to also print spans to the console.
 
 ## Adding a command or event
 
@@ -58,6 +63,8 @@ The image expects the same runtime config as the old Fly app:
 * `BOT_CONFIG` (defaults to `/data/config.json` in the image) — put `config.json` on that volume
 * `IS_IN_CONTAINER=true` (set in the image) — SQLite files go on `/data` so they survive restarts
 * Optional `DEV_GUILD_ID` — guild-scoped slash command registration (see above)
+* Optional `bugsnagKey` in that config file — errors go to Bugsnag when set
+* Optional `OTEL_EXPORTER_OTLP_ENDPOINT` (and the other `OTEL_*` vars above) — tracing stays off when unset
 * No new required environment variables
 
 Example:
@@ -75,6 +82,7 @@ docker run -d --name stancy-bot \
 * `/voice-create` - creates a voice channel in a sub-category called "on-demand voice"
 * Watches voiceStateUpdate event to see if channel in that "on-demand voice" category is empty
 * `/ping` - replies with Pong and an **Again** button (proves component routing)
+* `/status` - uptime, package version, and server count
 * `/settings` - administrators view or set `modRole`, `adminRole`, and `systemNotice` per server
 
 
