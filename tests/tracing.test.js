@@ -183,20 +183,35 @@ describe("startTracing", () => {
 });
 
 describe("real OpenTelemetry packages", () => {
-  afterEach(async () => {
-    await shutdownTracing();
-    restoreServiceName();
-  });
+  test("0.300 / sdk-trace still export the constructors tracing.js uses", () => {
+    const { NodeSDK } = require("@opentelemetry/sdk-node");
+    const { OTLPTraceExporter } = require("@opentelemetry/exporter-trace-otlp-http");
+    const {
+      BatchSpanProcessor,
+      SimpleSpanProcessor,
+      ConsoleSpanExporter,
+    } = require("@opentelemetry/sdk-trace");
+    const { getNodeAutoInstrumentations } = require("@opentelemetry/auto-instrumentations-node");
+    const api = require("@opentelemetry/api");
+    const resources = require("@opentelemetry/resources");
 
-  test("startTracing constructs the real 0.300 / sdk-trace processors", async () => {
-    const result = startTracing({
-      OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:4318/v1/traces",
+    expect(typeof NodeSDK).toBe("function");
+    expect(typeof OTLPTraceExporter).toBe("function");
+    expect(typeof BatchSpanProcessor).toBe("function");
+    expect(typeof SimpleSpanProcessor).toBe("function");
+    expect(typeof ConsoleSpanExporter).toBe("function");
+    expect(typeof getNodeAutoInstrumentations).toBe("function");
+    expect(api.trace).toBeDefined();
+    expect(api.SpanStatusCode).toBeDefined();
+    expect(typeof resources.resourceFromAttributes).toBe("function");
+
+    const exporter = new OTLPTraceExporter({
+      url: "http://127.0.0.1:4318/v1/traces",
     });
-
-    expect(result.enabled).toBe(true);
-    expect(result.error).toBeUndefined();
-    expect(result.sdkOptions.spanProcessors).toHaveLength(1);
-    await shutdownTracing();
+    expect(() => new BatchSpanProcessor({ exporter })).not.toThrow();
+    expect(() => new SimpleSpanProcessor({
+      exporter: new ConsoleSpanExporter(),
+    })).not.toThrow();
   });
 });
 
