@@ -31,7 +31,7 @@ function restoreServiceName() {
   }
 }
 
-function fakeTracingDeps({ slowShutdown = false } = {}) {
+function fakeTracingDeps({ slowShutdown = false, patchDiscordRest = false } = {}) {
   const constructed = [];
   const instances = [];
   const exporters = [];
@@ -93,7 +93,7 @@ function fakeTracingDeps({ slowShutdown = false } = {}) {
     getNodeAutoInstrumentations: () => [],
     trace: { getTracer() { return {}; } },
     SpanStatusCode: { ERROR: 2 },
-    patchDiscordRest: false,
+    patchDiscordRest,
     resource: { attributes: { [SERVICE_NAME_ATTR]: DEFAULT_SERVICE_NAME } },
   };
 }
@@ -212,6 +212,44 @@ describe("real OpenTelemetry packages", () => {
     expect(() => new SimpleSpanProcessor({
       exporter: new ConsoleSpanExporter(),
     })).not.toThrow();
+  });
+});
+
+describe("Discord REST patch", () => {
+  afterEach(async () => {
+    await shutdownTracing();
+    restoreServiceName();
+  });
+
+  test("patches the REST prototype discord.js Client uses, not the ESM @discordjs/rest export", async () => {
+    const { Client, REST } = await import("discord.js");
+    const esm = await import("@discordjs/rest");
+    const originalQueueRequest = REST.prototype.queueRequest;
+    const originalEsmQueueRequest = esm.REST.prototype.queueRequest;
+    const deps = fakeTracingDeps({ patchDiscordRest: true });
+
+    try {
+      const result = await startTracing(
+        { OTEL_EXPORTER_OTLP_ENDPOINT: "https://otel.example/v1/traces" },
+        deps
+      );
+      expect(result.enabled).toBe(true);
+
+      const client = new Client({ intents: [] });
+      expect(Object.getPrototypeOf(client.rest)).toBe(REST.prototype);
+      expect(client.rest.constructor).toBe(REST);
+      expect(REST.prototype.queueRequest).not.toBe(originalQueueRequest);
+      expect(REST.prototype.queueRequest.name).toBe("patchedQueueRequest");
+      expect(client.rest.queueRequest).toBe(REST.prototype.queueRequest);
+
+      // Dual-package hazard: ESM @discordjs/rest is a different class.
+      expect(esm.REST).not.toBe(REST);
+      expect(Object.getPrototypeOf(client.rest)).not.toBe(esm.REST.prototype);
+      expect(esm.REST.prototype.queueRequest).toBe(originalEsmQueueRequest);
+    } finally {
+      REST.prototype.queueRequest = originalQueueRequest;
+      esm.REST.prototype.queueRequest = originalEsmQueueRequest;
+    }
   });
 });
 

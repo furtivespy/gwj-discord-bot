@@ -2,7 +2,6 @@ import {
   SlashCommandBuilder,
   PermissionsBitField,
   MessageFlags,
-  InteractionContextType,
 } from "discord.js";
 import SlashCommand from "../../base/SlashCommand.js";
 import {
@@ -33,7 +32,7 @@ class Settings extends SlashCommand {
       .setName(this.help.name)
       .setDescription(this.help.description)
       .setDefaultMemberPermissions(PermissionsBitField.Flags.Administrator)
-      .setContexts(InteractionContextType.Guild)
+      .setDMPermission(false)
       .addSubcommand((subcommand) =>
         subcommand.setName("show").setDescription("Show all guild settings")
       )

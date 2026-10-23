@@ -171,7 +171,9 @@ async function startTracing(env = process.env, deps = {}) {
 
 async function patchDiscordRest(trace, SpanStatusCode) {
   try {
-    const { REST } = await import("@discordjs/rest");
+    // discord.js require()s the CJS build of @discordjs/rest. Dynamic
+    // import("@discordjs/rest") is a different REST class than Client uses.
+    const { REST } = await import("discord.js");
     const discordRestTracer = trace.getTracer("stancy-bot:rest");
     const originalQueueRequest = REST.prototype.queueRequest;
     REST.prototype.queueRequest = async function patchedQueueRequest(options) {
@@ -209,7 +211,7 @@ async function patchDiscordRest(trace, SpanStatusCode) {
     };
     console.log("[tracing] Discord REST patched");
   } catch (err) {
-    console.warn("[tracing] Could not patch @discordjs/rest:", err.message);
+    console.warn("[tracing] Could not patch discord.js REST:", err.message);
   }
 }
 
