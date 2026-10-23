@@ -60,6 +60,9 @@ function loadConfig(env = process.env) {
   try {
     return loadJsonConfig(path.resolve(__dirname, raw));
   } catch (error) {
+    if (error?.code !== "ENOENT") {
+      throw error;
+    }
     return loadJsonConfig(path.resolve(raw));
   }
 }
