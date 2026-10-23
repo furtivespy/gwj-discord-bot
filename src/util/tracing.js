@@ -70,7 +70,7 @@ function loadSdkDeps(deps = {}) {
     : require("@opentelemetry/exporter-trace-otlp-http");
   const traceBase = deps.BatchSpanProcessor && deps.SimpleSpanProcessor && deps.ConsoleSpanExporter
     ? null
-    : require("@opentelemetry/sdk-trace-base");
+    : require("@opentelemetry/sdk-trace");
   const auto = deps.getNodeAutoInstrumentations
     ? null
     : require("@opentelemetry/auto-instrumentations-node");
@@ -126,10 +126,12 @@ function startTracing(env = process.env, deps = {}) {
       headers: config.headers,
     });
 
-    const spanProcessors = [new BatchSpanProcessor(otlpExporter)];
+    const spanProcessors = [new BatchSpanProcessor({ exporter: otlpExporter })];
 
     if (config.debugSpans) {
-      spanProcessors.push(new SimpleSpanProcessor(new ConsoleSpanExporter()));
+      spanProcessors.push(new SimpleSpanProcessor({
+        exporter: new ConsoleSpanExporter(),
+      }));
       console.log("[tracing] OTEL_DEBUG_SPANS=true — spans will print to console");
     }
 

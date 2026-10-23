@@ -182,6 +182,39 @@ describe("startTracing", () => {
   });
 });
 
+describe("real OpenTelemetry packages", () => {
+  test("0.300 / sdk-trace still export the constructors tracing.js uses", () => {
+    const { NodeSDK } = require("@opentelemetry/sdk-node");
+    const { OTLPTraceExporter } = require("@opentelemetry/exporter-trace-otlp-http");
+    const {
+      BatchSpanProcessor,
+      SimpleSpanProcessor,
+      ConsoleSpanExporter,
+    } = require("@opentelemetry/sdk-trace");
+    const { getNodeAutoInstrumentations } = require("@opentelemetry/auto-instrumentations-node");
+    const api = require("@opentelemetry/api");
+    const resources = require("@opentelemetry/resources");
+
+    expect(typeof NodeSDK).toBe("function");
+    expect(typeof OTLPTraceExporter).toBe("function");
+    expect(typeof BatchSpanProcessor).toBe("function");
+    expect(typeof SimpleSpanProcessor).toBe("function");
+    expect(typeof ConsoleSpanExporter).toBe("function");
+    expect(typeof getNodeAutoInstrumentations).toBe("function");
+    expect(api.trace).toBeDefined();
+    expect(api.SpanStatusCode).toBeDefined();
+    expect(typeof resources.resourceFromAttributes).toBe("function");
+
+    const exporter = new OTLPTraceExporter({
+      url: "http://127.0.0.1:4318/v1/traces",
+    });
+    expect(() => new BatchSpanProcessor({ exporter })).not.toThrow();
+    expect(() => new SimpleSpanProcessor({
+      exporter: new ConsoleSpanExporter(),
+    })).not.toThrow();
+  });
+});
+
 describe("production shutdown ownership", () => {
   test("tracing.js does not export a signal helper; bot.js only starts the SDK", () => {
     const tracing = require("../src/util/tracing.js");

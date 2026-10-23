@@ -10,10 +10,12 @@ Stancy Bot - A Voice Channel Creation Bot for Gamers With Jobs
 
 * Copy `config.json.sample` to `config.json` and edit the values to your secrets
 * Copy `.env.example` to `.env` and set `BOT_CONFIG` to the path of that config file
-* Install [Bun](https://bun.sh) 1.3.14 (see `packageManager` in `package.json`)
+* Install [Bun](https://bun.sh) 1.4.3 (see `packageManager` in `package.json`)
 * Install package dependencies: `bun install`
 * Run the bot: `bun run start`
 * Run tests: `bun test`
+
+`bunfig.toml` sets `install.minimumReleaseAge = 172800` (48 hours). `bun install` and `bun update` skip npm versions published more recently than that, so a compromised fresh publish is not pulled automatically. The lockfile is regenerated with this gate in effect. Verified: `bun add dotenv@18.0.9` (published less than 48 hours before this review) fails with `blocked by minimum-release-age: 172800 seconds`; 18.0.8 installs. There is no Dependabot or Renovate config in this repo; when one is added, give it the same 48-hour cooldown.
 
 Required config keys: `token`, `clientId`, `environment`.
 
@@ -156,5 +158,18 @@ docker run -d --name stancy-bot \
 * `/status` - uptime, package version, and server count
 * `/settings` - administrators view or set `modRole`, `adminRole`, and `systemNotice` per server
 
+
+## Dependencies
+
+Every package in `package.json` is imported. None were removed.
+
+Held back (update would be brand-new or would force a risky rewrite):
+
+* **Bun 1.4.3** (not 1.4.4) — 1.4.4 was published less than 48 hours before this review. Same pin in `packageManager`, the `oven/bun` image, and `setup-bun`.
+* **dotenv ^18.0.8** (not 18.0.9) — 18.0.9 was published less than 48 hours before this review; the cooldown should keep it out of the lockfile.
+* **chalk 4.1.2** — chalk 5+ is ESM-only; this template is CommonJS (`require`).
+* **K-Phoen/semver-release-action@master** — already a floating `master` pin on the release workflow. Changing it is out of scope for a dependency bump.
+
+`moment` is in maintenance mode but is used by the logger for timestamps; it is kept rather than rewritten to `Date`. `dotenv` is still called from `src/bot.js` (`config({ quiet: true })`) even though Bun also auto-loads `.env`. `@discordjs/rest`, `@opentelemetry/api`, `@opentelemetry/resources`, and `@opentelemetry/sdk-trace` are now direct dependencies because the bot `require`s them (they used to arrive only transitively).
 
 #### Come [join us on discord](https://discord.com/invite/HfYNSdP)!

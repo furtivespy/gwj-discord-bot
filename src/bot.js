@@ -1,4 +1,4 @@
-require("dotenv").config();
+require("dotenv").config({ quiet: true });
 const path = require("path");
 const { startTracing } = require("./util/tracing");
 try {

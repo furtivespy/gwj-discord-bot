@@ -59,7 +59,8 @@ Guild overrides live in `{dataDir}/settings.sqlite` (`./data` locally, `/data` i
 
 ## Conventions
 
-- Runtime is **Bun 1.3.14** (`packageManager` in `package.json`). Do not switch to Node or npm without an explicit ask.
+- Runtime is **Bun 1.4.3** (`packageManager` in `package.json`). Do not switch to Node or npm without an explicit ask.
+- `bunfig.toml` sets `install.minimumReleaseAge = 172800` (48 hours) so `bun install` / `bun update` skip npm versions published more recently than that.
 - Config is JSON (`BOT_CONFIG` / `config.json.sample`), not `config.js`. Token, `clientId`, and `bugsnagKey` are config keys, not env vars.
 - `DEV_GUILD_ID` (env) or `devGuildId` (config) registers guild-scoped slash commands. If neither is set, commands register globally (development logs a warning). Do not bake a guild id into source.
 - Logger is console-only unless `bugsnagKey` is a real key (not blank / `abc123`). Tracing is off unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set.
