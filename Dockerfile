@@ -1,6 +1,6 @@
 # syntax = docker/dockerfile:1
 
-ARG BUN_VERSION=1.3.14
+ARG BUN_VERSION=1.4.3
 FROM oven/bun:${BUN_VERSION} AS base
 
 WORKDIR /app
@@ -12,7 +12,7 @@ ENV NODE_ENV="production"
 FROM base AS build
 
 # Install dependencies
-COPY --link package.json bun.lock ./
+COPY --link package.json bun.lock bunfig.toml ./
 RUN bun install --frozen-lockfile --production
 
 # Copy application code

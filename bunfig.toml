@@ -1,0 +1,4 @@
+[install]
+# Reject npm versions published less than 48 hours ago (supply-chain cooldown).
+# Seconds; Bun also accepts units such as "48 hours" or "2d".
+minimumReleaseAge = 172800

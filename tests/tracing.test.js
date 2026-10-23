@@ -182,6 +182,24 @@ describe("startTracing", () => {
   });
 });
 
+describe("real OpenTelemetry packages", () => {
+  afterEach(async () => {
+    await shutdownTracing();
+    restoreServiceName();
+  });
+
+  test("startTracing constructs the real 0.300 / sdk-trace processors", async () => {
+    const result = startTracing({
+      OTEL_EXPORTER_OTLP_ENDPOINT: "http://127.0.0.1:4318/v1/traces",
+    });
+
+    expect(result.enabled).toBe(true);
+    expect(result.error).toBeUndefined();
+    expect(result.sdkOptions.spanProcessors).toHaveLength(1);
+    await shutdownTracing();
+  });
+});
+
 describe("production shutdown ownership", () => {
   test("tracing.js does not export a signal helper; bot.js only starts the SDK", () => {
     const tracing = require("../src/util/tracing.js");
