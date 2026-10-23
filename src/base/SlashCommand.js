@@ -29,4 +29,4 @@ class SlashCommand {
   async modal(_interaction) {}
 }
 
-module.exports = SlashCommand;
+export default SlashCommand;

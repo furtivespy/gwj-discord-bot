@@ -1,6 +1,6 @@
-const path = require("path");
-const { Database } = require("bun:sqlite");
-const { ensureDataDir } = require("./dataDir.js");
+import path from "node:path";
+import { Database } from "bun:sqlite";
+import { ensureDataDir } from "./dataDir.js";
 
 function cloneValue(value) {
   if (value === undefined) return value;
@@ -204,4 +204,4 @@ class BunEnmap {
   }
 }
 
-module.exports = BunEnmap;
+export default BunEnmap;

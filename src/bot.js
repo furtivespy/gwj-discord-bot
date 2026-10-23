@@ -1,29 +1,37 @@
-require("dotenv").config({ quiet: true });
-const path = require("path");
-const { startTracing } = require("./util/tracing");
-try {
-  startTracing();
-} catch (err) {
-  console.warn("[tracing] failed to start — continuing without traces:", err);
-}
-const {
+import dotenv from "dotenv";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { startTracing } from "./util/tracing.js";
+import {
   Client,
   Collection,
   Partials,
   GatewayIntentBits,
   ActivityType,
-} = require("discord.js");
-const BunEnmap = require("./db/BunEnmap.js");
-const { resolveConfigPath } = require("./db/dataDir.js");
-const permLevels = require("./config.permissionLevels.js");
-const {
-  DEFAULT_SETTINGS,
+} from "discord.js";
+import BunEnmap from "./db/BunEnmap.js";
+import { resolveConfigPath } from "./db/dataDir.js";
+import permLevels from "./config.permissionLevels.js";
+import {
   resolveDefaults,
   getSettings,
   writeSettings,
-} = require("./util/settings.js");
-const { buildLevelCache, permlevel } = require("./util/permissions.js");
-const { registerShutdownHandlers } = require("./util/gracefulShutdown.js");
+} from "./util/settings.js";
+import { buildLevelCache, permlevel } from "./util/permissions.js";
+import { registerShutdownHandlers } from "./util/gracefulShutdown.js";
+import createLogger from "./util/logger.js";
+import loadSlashCommands from "./handlers/slashcommands.js";
+import loadEvents from "./handlers/events.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+dotenv.config({ quiet: true });
+try {
+  await startTracing();
+} catch (err) {
+  console.warn("[tracing] failed to start — continuing without traces:", err);
+}
 
 const partials = [Partials.Guild];
 const intents = [
@@ -40,15 +48,22 @@ const presence = {
   }],
 };
 
+function loadJsonConfig(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
+
 function loadConfig(env = process.env) {
   const raw = env.BOT_CONFIG || resolveConfigPath(env);
   if (path.isAbsolute(raw)) {
-    return require(raw);
+    return loadJsonConfig(raw);
   }
   try {
-    return require(raw);
+    return loadJsonConfig(path.resolve(__dirname, raw));
   } catch (error) {
-    return require(path.resolve(raw));
+    if (error?.code !== "ENOENT") {
+      throw error;
+    }
+    return loadJsonConfig(path.resolve(raw));
   }
 }
 
@@ -70,7 +85,7 @@ class DiscordBot extends Client {
     this.dataStores = [this.settings];
     this.settings.ensure("default", this.config.defaultSettings);
 
-    this.logger = require("./util/logger.js")({
+    this.logger = createLogger({
       apiKey: this.config.bugsnagKey,
       releaseStage: this.config.environment,
     });
@@ -102,16 +117,16 @@ const init = async () => {
   });
   bot.logger.info("Starting Bot", "bot.js");
 
-  require("./handlers/slashcommands.js")(bot);
-  require("./handlers/events.js")(bot);
+  await loadSlashCommands(bot);
+  await loadEvents(bot);
 
   registerShutdownHandlers(bot);
 
-  bot.login(bot.config.token);
+  await bot.login(bot.config.token);
 };
 
-if (require.main === module) {
+if (import.meta.main) {
   init();
 }
 
-module.exports = { DiscordBot, loadConfig, init };
+export { DiscordBot, loadConfig, init };

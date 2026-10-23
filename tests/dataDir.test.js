@@ -1,11 +1,11 @@
-const { describe, expect, test } = require("bun:test");
-const path = require("path");
-const {
+import { describe, expect, test } from "bun:test";
+import path from "node:path";
+import {
   CONTAINER_DATA_DIR,
   isInContainer,
   resolveDataDir,
   resolveConfigPath,
-} = require("../src/db/dataDir.js");
+} from "../src/db/dataDir.js";
 
 describe("isInContainer", () => {
   test("is false when unset (local runs)", () => {

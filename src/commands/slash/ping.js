@@ -1,12 +1,12 @@
-const {
+import {
   SlashCommandBuilder,
   EmbedBuilder,
   MessageFlags,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-} = require("discord.js");
-const SlashCommand = require("../../base/SlashCommand.js");
+} from "discord.js";
+import SlashCommand from "../../base/SlashCommand.js";
 
 const PING_AGAIN_ID = "ping:again";
 
@@ -84,4 +84,4 @@ class Ping extends SlashCommand {
 }
 
 Ping.PING_AGAIN_ID = PING_AGAIN_ID;
-module.exports = Ping;
+export default Ping;

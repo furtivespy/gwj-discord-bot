@@ -58,7 +58,7 @@ function applicationOwnerId(client) {
 
 // Game Bot's permission ladder, updated for discord.js v14 Collections
 // (`roles.cache`) and slash-command interactions (`user` instead of `author`).
-module.exports = [
+export default [
   {
     level: 0,
     name: "User",

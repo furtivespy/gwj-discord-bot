@@ -36,9 +36,9 @@ function resolveTracingConfig(env = process.env) {
 let sdk = null;
 let warnedDisabled = false;
 
-function createServiceResource(serviceName) {
+async function createServiceResource(serviceName) {
   try {
-    const resources = require("@opentelemetry/resources");
+    const resources = await import("@opentelemetry/resources");
     if (typeof resources.resourceFromAttributes === "function") {
       return resources.resourceFromAttributes({ [SERVICE_NAME_ATTR]: serviceName });
     }
@@ -63,18 +63,18 @@ function applyServiceName(serviceName, env = process.env) {
   if (env !== process.env) assignIfBlank(process.env);
 }
 
-function loadSdkDeps(deps = {}) {
-  const sdkNode = deps.NodeSDK ? null : require("@opentelemetry/sdk-node");
+async function loadSdkDeps(deps = {}) {
+  const sdkNode = deps.NodeSDK ? null : await import("@opentelemetry/sdk-node");
   const exporter = deps.OTLPTraceExporter
     ? null
-    : require("@opentelemetry/exporter-trace-otlp-http");
+    : await import("@opentelemetry/exporter-trace-otlp-http");
   const traceBase = deps.BatchSpanProcessor && deps.SimpleSpanProcessor && deps.ConsoleSpanExporter
     ? null
-    : require("@opentelemetry/sdk-trace");
+    : await import("@opentelemetry/sdk-trace");
   const auto = deps.getNodeAutoInstrumentations
     ? null
-    : require("@opentelemetry/auto-instrumentations-node");
-  const api = deps.trace && deps.SpanStatusCode ? null : require("@opentelemetry/api");
+    : await import("@opentelemetry/auto-instrumentations-node");
+  const api = deps.trace && deps.SpanStatusCode ? null : await import("@opentelemetry/api");
 
   return {
     NodeSDK: deps.NodeSDK || sdkNode.NodeSDK,
@@ -89,7 +89,7 @@ function loadSdkDeps(deps = {}) {
   };
 }
 
-function startTracing(env = process.env, deps = {}) {
+async function startTracing(env = process.env, deps = {}) {
   if (sdk) {
     return { enabled: true, reused: true };
   }
@@ -117,7 +117,7 @@ function startTracing(env = process.env, deps = {}) {
       getNodeAutoInstrumentations,
       trace,
       SpanStatusCode,
-    } = loadSdkDeps(deps);
+    } = await loadSdkDeps(deps);
 
     applyServiceName(config.serviceName, env);
 
@@ -150,13 +150,13 @@ function startTracing(env = process.env, deps = {}) {
 
     const resource = deps.resource !== undefined
       ? deps.resource
-      : createServiceResource(config.serviceName);
+      : await createServiceResource(config.serviceName);
     if (resource) sdkOptions.resource = resource;
 
     sdk = new NodeSDK(sdkOptions);
     sdk.start();
     if (deps.patchDiscordRest !== false) {
-      patchDiscordRest(trace, SpanStatusCode);
+      await patchDiscordRest(trace, SpanStatusCode);
     }
     console.log(
       `[tracing] OTel started — service=${config.serviceName} → ${config.endpoint}`
@@ -169,9 +169,11 @@ function startTracing(env = process.env, deps = {}) {
   }
 }
 
-function patchDiscordRest(trace, SpanStatusCode) {
+async function patchDiscordRest(trace, SpanStatusCode) {
   try {
-    const { REST } = require("@discordjs/rest");
+    // discord.js require()s the CJS build of @discordjs/rest. Dynamic
+    // import("@discordjs/rest") is a different REST class than Client uses.
+    const { REST } = await import("discord.js");
     const discordRestTracer = trace.getTracer("stancy-bot:rest");
     const originalQueueRequest = REST.prototype.queueRequest;
     REST.prototype.queueRequest = async function patchedQueueRequest(options) {
@@ -209,7 +211,7 @@ function patchDiscordRest(trace, SpanStatusCode) {
     };
     console.log("[tracing] Discord REST patched");
   } catch (err) {
-    console.warn("[tracing] Could not patch @discordjs/rest:", err.message);
+    console.warn("[tracing] Could not patch discord.js REST:", err.message);
   }
 }
 
@@ -220,7 +222,7 @@ async function shutdownTracing() {
   await active.shutdown();
 }
 
-module.exports = {
+export {
   DEFAULT_SERVICE_NAME,
   SERVICE_NAME_ATTR,
   parseOtelHeaders,

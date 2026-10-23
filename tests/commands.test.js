@@ -11,8 +11,8 @@ import {
   tryLoad,
 } from "./helpers/voiceFeature.js";
 
-const VoiceCreate = tryLoad(VOICE_COMMAND);
-const FALLBACK_PARENT_ID = tryLoad(VOICE_UTIL)?.FALLBACK_PARENT_ID ?? null;
+const VoiceCreate = await tryLoad(VOICE_COMMAND);
+const FALLBACK_PARENT_ID = (await tryLoad(VOICE_UTIL))?.FALLBACK_PARENT_ID ?? null;
 
 function silentLogger() {
   return {

@@ -1,4 +1,4 @@
-const { ChannelType } = require("discord.js");
+import { ChannelType } from "discord.js";
 
 // Helpers for the sample voice command + event only. Safe to delete with
 // src/commands/slash/voiceCreate.js and src/events/voiceStateUpdate.js.
@@ -28,7 +28,7 @@ function shouldDeleteEmptyOnDemandChannel(oldState, newState) {
   return oldState.channel.members.size === 0;
 }
 
-module.exports = {
+export {
   ON_DEMAND_CATEGORY_NAME,
   FALLBACK_PARENT_ID,
   findOnDemandCategory,

@@ -1,3 +1,5 @@
+import { guildFromInteraction } from "./settings.js";
+
 function buildLevelCache(permLevels) {
   const cache = {};
   for (const level of permLevels) {
@@ -5,8 +7,6 @@ function buildLevelCache(permLevels) {
   }
   return cache;
 }
-
-const { guildFromInteraction } = require("./settings.js");
 
 function permissionContext(interaction, settings) {
   return {
@@ -88,7 +88,7 @@ function checkCommandPermission({
   };
 }
 
-module.exports = {
+export {
   buildLevelCache,
   permissionContext,
   permlevel,

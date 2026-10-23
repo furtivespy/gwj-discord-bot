@@ -1,10 +1,12 @@
+import { Events } from "discord.js";
+
 const EventTypes = {
-  READY: "ready",
-  INTERACTION_CREATE: "interactionCreate",
+  READY: Events.ClientReady,
+  INTERACTION_CREATE: Events.InteractionCreate,
   // Optional Discord event names. Unused unless a matching file exists under src/events.
-  VOICE_STATE_UPDATE: "voiceStateUpdate",
-  MESSAGE_REACTION_ADD: "messageReactionAdd",
-  MESSAGE_REACTION_REMOVE: "messageReactionRemove",
+  VOICE_STATE_UPDATE: Events.VoiceStateUpdate,
+  MESSAGE_REACTION_ADD: Events.MessageReactionAdd,
+  MESSAGE_REACTION_REMOVE: Events.MessageReactionRemove,
 };
 
-module.exports = EventTypes;
+export default EventTypes;

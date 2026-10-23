@@ -1,13 +1,13 @@
-const {
+import {
   SlashCommandBuilder,
   ChannelType,
   MessageFlags,
-} = require("discord.js");
-const SlashCommand = require("../../base/SlashCommand.js");
-const {
+} from "discord.js";
+import SlashCommand from "../../base/SlashCommand.js";
+import {
   findOnDemandCategory,
   resolveOnDemandParent,
-} = require("../../util/onDemandVoice");
+} from "../../util/onDemandVoice.js";
 
 // Sample on-demand voice feature. Delete this file together with
 // src/events/voiceStateUpdate.js (and optionally src/util/onDemandVoice.js)
@@ -66,4 +66,4 @@ class VoiceCreate extends SlashCommand {
   }
 }
 
-module.exports = VoiceCreate;
+export default VoiceCreate;

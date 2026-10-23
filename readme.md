@@ -4,7 +4,7 @@ Stancy Bot - A Voice Channel Creation Bot for Gamers With Jobs
 ## I created this bot for 2 reasons:
 
 1) Our original bot has gone offline and I wanted a replacement
-2) To create a decent base template for a discord.js v14 bot
+2) To create a decent base template for a discord.js v14 bot (ES modules)
 
 ## Local development
 
@@ -25,7 +25,7 @@ Optional:
 
 * `bugsnagKey` (config) — when set, `error` logs are reported to Bugsnag. When unset, blank, or the `config.json.sample` placeholder `abc123`, the logger stays on the console only (Game Bot's `BugsnagLogger` with a console fallback).
 * `defaultSettings` — per-server defaults (`modRole`, `adminRole`, `systemNotice`) merged with guild overrides stored in SQLite
-* `botOwnerId` — Discord user id treated as Bot Owner for permission checks. If unset, the Discord application owner (fetched on ready) is used.
+* `botOwnerId` — Discord user id treated as Bot Owner for permission checks. If unset, the Discord application owner (fetched on `clientReady`) is used.
 * `STANCY_DATA_DIR` (env) — local directory for SQLite files (defaults to `./data`). In a container this is always `/data`.
 * `DEV_GUILD_ID` (env) or `devGuildId` (config) — register slash commands to this guild instead of globally. Instant updates while developing. If neither is set, commands register globally (and development logs a warning). There is no hardcoded fallback guild.
 * `OTEL_EXPORTER_OTLP_ENDPOINT` (env) — optional OpenTelemetry. Tracing is off unless this endpoint is set. Same shape as Game Bot's `tracing.js`, but gated on an OTLP URL instead of a Honeycomb API key.
@@ -35,10 +35,10 @@ Optional:
 
 ## Adding a command or event
 
-Adding a `.js` file under `src/commands/slash` or `src/events` (including subfolders) is the only step to add a feature. The loaders auto-discover files, instantiate the exported class, and log each load.
+Adding a `.js` file under `src/commands/slash` or `src/events` (including subfolders) is the only step to add a feature. The loaders auto-discover files, instantiate the **default-exported** class, and log each load. The project is ES modules (`package.json` `"type": "module"`); use `import`/`export`, not `require`/`module.exports`.
 
 * Slash commands extend `src/base/SlashCommand.js`, set `this.data` (`SlashCommandBuilder`), and implement `execute`. Optional hooks: `autocomplete`, `button`, `selectMenu`, `modal`.
-* Events extend `src/base/Event.js`, set `eventType` from `src/base/EventTypes.js`, and implement `run(...)`.
+* Events extend `src/base/Event.js`, set `eventType` from `src/base/EventTypes.js` (Discord names such as `clientReady`), and implement `run(...)`. The ready handler file is still `src/events/ready.js`; it binds `Events.ClientReady` (`clientReady`).
 
 Buttons, select menus, and modals are routed to the command whose name is the `customId` prefix before `:`. Example: `ping:again` is handled by `/ping`. `/ping` includes a sample **Again** button that proves this path (the same prefix routing a drop "In" button will use).
 
@@ -90,7 +90,7 @@ Stancy is a starter template. The on-demand voice feature is self-contained: del
 
    In `config.json` set `token`, `clientId`, and `environment`. Optional: `bugsnagKey`, `botOwnerId`, `defaultSettings`.
 
-   In `.env` set `BOT_CONFIG` to that config file (`../config.json` from `src/bot.js`, i.e. the file next to `package.json`). Set `DEV_GUILD_ID` to **your** test guild (the key is already in `.env.example`). If you leave it blank, commands register globally and can take up to an hour to appear.
+   In `.env` set `BOT_CONFIG` to that config file. Relative paths are resolved from `src/bot.js`, so from the repo this is `../config.json` (the file next to `package.json`). Set `DEV_GUILD_ID` to **your** test guild (the key is already in `.env.example`). If you leave it blank, commands register globally and can take up to an hour to appear.
 
 5. **Install, test, register commands.**
 
@@ -167,9 +167,9 @@ Held back (update would be brand-new or would force a risky rewrite):
 
 * **Bun 1.4.3** (not 1.4.4) — 1.4.4 was published less than 48 hours before this review. Same pin in `packageManager`, the `oven/bun` image, and `setup-bun`.
 * **dotenv ^18.0.8** (not 18.0.9) — 18.0.9 was published less than 48 hours before this review; the cooldown should keep it out of the lockfile.
-* **chalk 4.1.2** — chalk 5+ is ESM-only; this template is CommonJS (`require`).
+* **chalk 4.1.2** — still CommonJS; chalk 5 is ESM-native. This template is ES modules (`"type": "module"`), so chalk 4 still `import`s. FUR-118 left this pin; bump it in a dedicated change with a logger color check.
 * **K-Phoen/semver-release-action@master** — already a floating `master` pin on the release workflow. Changing it is out of scope for a dependency bump.
 
-`moment` is in maintenance mode but is used by the logger for timestamps; it is kept rather than rewritten to `Date`. `dotenv` is still called from `src/bot.js` (`config({ quiet: true })`) even though Bun also auto-loads `.env`. `@discordjs/rest`, `@opentelemetry/api`, `@opentelemetry/resources`, and `@opentelemetry/sdk-trace` are now direct dependencies because the bot `require`s them (they used to arrive only transitively).
+`moment` is in maintenance mode but is used by the logger for timestamps; it is kept rather than rewritten to `Date`. `dotenv` is still called from `src/bot.js` (`config({ quiet: true })`) even though Bun also auto-loads `.env`. `@discordjs/rest`, `@opentelemetry/api`, `@opentelemetry/resources`, and `@opentelemetry/sdk-trace` are now direct dependencies because the bot `import`s them (they used to arrive only transitively). Tracing loads OpenTelemetry with a dynamic `import()` inside `startTracing()`.
 
 #### Come [join us on discord](https://discord.com/invite/HfYNSdP)!

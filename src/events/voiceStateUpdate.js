@@ -1,6 +1,6 @@
-const Event = require("../base/Event.js");
-const EventTypes = require("../base/EventTypes.js");
-const { shouldDeleteEmptyOnDemandChannel } = require("../util/onDemandVoice");
+import Event from "../base/Event.js";
+import EventTypes from "../base/EventTypes.js";
+import { shouldDeleteEmptyOnDemandChannel } from "../util/onDemandVoice.js";
 
 // Sample on-demand voice feature. Delete this file together with
 // src/commands/slash/voiceCreate.js (and optionally src/util/onDemandVoice.js)
@@ -27,4 +27,4 @@ class VoiceStateUpdate extends Event {
   }
 }
 
-module.exports = VoiceStateUpdate;
+export default VoiceStateUpdate;

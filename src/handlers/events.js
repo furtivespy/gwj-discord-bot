@@ -1,8 +1,9 @@
-const path = require("path");
-const { Collection } = require("discord.js");
-const { listJsFiles, instantiate } = require("./discover");
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { Collection } from "discord.js";
+import { listJsFiles, instantiate, importJsFile } from "./discover.js";
 
-const DEFAULT_EVENTS_PATH = path.join(__dirname, "../events");
+const DEFAULT_EVENTS_PATH = path.join(path.dirname(fileURLToPath(import.meta.url)), "../events");
 
 async function handleWithCatch(event, client, ...eventParams) {
   try {
@@ -29,7 +30,7 @@ function bindEvent(botClient, event) {
   return eventName;
 }
 
-function loadEvents(botClient, options = {}) {
+async function loadEvents(botClient, options = {}) {
   botClient.logger?.info("Loading Event Handlers", "events.js");
   if (!botClient.events) {
     botClient.events = new Collection();
@@ -40,7 +41,7 @@ function loadEvents(botClient, options = {}) {
 
   for (const file of listJsFiles(eventPath)) {
     try {
-      const event = instantiate(require(file), botClient);
+      const event = instantiate(await importJsFile(file), botClient);
       const name = event.help?.name || path.basename(file, ".js");
       botClient.logger?.info(`Loading Event: ${name}. 👌`, "events.js");
       if (event.conf && event.conf.enabled === false) continue;
@@ -56,4 +57,6 @@ function loadEvents(botClient, options = {}) {
 }
 
 loadEvents.handleWithCatch = handleWithCatch;
-module.exports = loadEvents;
+
+export { handleWithCatch, bindEvent, loadEvents };
+export default loadEvents;

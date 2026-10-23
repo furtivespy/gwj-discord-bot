@@ -1,15 +1,15 @@
-const {
+import {
   SlashCommandBuilder,
   PermissionsBitField,
   MessageFlags,
-} = require("discord.js");
-const SlashCommand = require("../../base/SlashCommand.js");
-const {
+} from "discord.js";
+import SlashCommand from "../../base/SlashCommand.js";
+import {
   DEFAULT_SETTINGS,
   SETTINGS_KEYS,
   guildFromInteraction,
   isKnownSettingKey,
-} = require("../../util/settings.js");
+} from "../../util/settings.js";
 
 function addKeyOption(option, description) {
   return option
@@ -138,4 +138,4 @@ class Settings extends SlashCommand {
   }
 }
 
-module.exports = Settings;
+export default Settings;

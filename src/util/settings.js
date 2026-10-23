@@ -74,7 +74,7 @@ function isKnownSettingKey(key) {
   return SETTINGS_KEYS.includes(key);
 }
 
-module.exports = {
+export {
   DEFAULT_SETTINGS,
   SETTINGS_KEYS,
   resolveDefaults,
