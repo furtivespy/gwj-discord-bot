@@ -1,18 +1,20 @@
 import { describe, expect, test } from "bun:test";
 import { ChannelType } from "discord.js";
-import {
-  FALLBACK_PARENT_ID,
-  ON_DEMAND_CATEGORY_NAME,
-  findOnDemandCategory,
-  resolveOnDemandParent,
-  shouldDeleteEmptyOnDemandChannel,
-} from "../src/util/onDemandVoice.js";
+import { VOICE_UTIL, tryLoad } from "./helpers/voiceFeature.js";
+
+const voiceHelpers = tryLoad(VOICE_UTIL);
+const FALLBACK_PARENT_ID = voiceHelpers?.FALLBACK_PARENT_ID;
+const ON_DEMAND_CATEGORY_NAME = voiceHelpers?.ON_DEMAND_CATEGORY_NAME;
+const findOnDemandCategory = voiceHelpers?.findOnDemandCategory;
+const resolveOnDemandParent = voiceHelpers?.resolveOnDemandParent;
+const shouldDeleteEmptyOnDemandChannel =
+  voiceHelpers?.shouldDeleteEmptyOnDemandChannel;
 
 function cacheOf(channels) {
   return { find: (predicate) => channels.find(predicate) };
 }
 
-describe("on-demand voice helpers", () => {
+describe.skipIf(!voiceHelpers)("on-demand voice helpers", () => {
   test("finds the on-demand category case-insensitively", () => {
     const category = {
       id: "cat-1",

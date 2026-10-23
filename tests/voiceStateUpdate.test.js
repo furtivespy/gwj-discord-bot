@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
-import VoiceStateUpdate from "../src/events/voiceStateUpdate.js";
+import { VOICE_EVENT, tryLoad } from "./helpers/voiceFeature.js";
+
+const VoiceStateUpdate = tryLoad(VOICE_EVENT);
 
 function silentLogger() {
   return {
@@ -13,7 +15,7 @@ function silentLogger() {
   };
 }
 
-describe("voiceStateUpdate auto-cleanup", () => {
+describe.skipIf(!VoiceStateUpdate)("voiceStateUpdate auto-cleanup", () => {
   test("deletes an empty on-demand voice channel", async () => {
     const deleted = [];
     const event = new VoiceStateUpdate({ logger: silentLogger() });

@@ -2,7 +2,6 @@ const path = require("path");
 const { Collection, REST, Routes } = require("discord.js");
 const { listJsFiles, instantiate } = require("./discover");
 
-const DEFAULT_DEV_GUILD_ID = "545109131330191371";
 const DEFAULT_COMMANDS_PATH = path.join(__dirname, "../commands/slash");
 
 function resolveDevGuildId(config = {}, env = process.env) {
@@ -11,7 +10,6 @@ function resolveDevGuildId(config = {}, env = process.env) {
   const fromConfig =
     typeof config.devGuildId === "string" ? config.devGuildId.trim() : "";
   if (fromConfig) return fromConfig;
-  if (config.environment === "development") return DEFAULT_DEV_GUILD_ID;
   return null;
 }
 
@@ -63,6 +61,13 @@ async function registerSlashCommands(botClient, commands, options = {}) {
     return { scope: "guild", guildId, count: payload.length };
   }
 
+  if (botClient.config?.environment === "development") {
+    botClient.logger?.warn(
+      "No DEV_GUILD_ID or config.devGuildId — registering slash commands globally (can take up to an hour). Set DEV_GUILD_ID to your test guild for instant updates.",
+      "slashcommands.js"
+    );
+  }
+
   await rest.put(Routes.applicationCommands(clientId), { body: payload });
   botClient.logger?.info("Successfully registered commands in Production", "slashcommands.js");
   return { scope: "global", count: payload.length };
@@ -83,6 +88,5 @@ function loadAndMaybeRegister(botClient, options = {}) {
 loadAndMaybeRegister.loadSlashCommands = loadSlashCommands;
 loadAndMaybeRegister.registerSlashCommands = registerSlashCommands;
 loadAndMaybeRegister.resolveDevGuildId = resolveDevGuildId;
-loadAndMaybeRegister.DEFAULT_DEV_GUILD_ID = DEFAULT_DEV_GUILD_ID;
 
 module.exports = loadAndMaybeRegister;

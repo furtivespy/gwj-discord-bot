@@ -8,8 +8,8 @@ Stancy Bot - A Voice Channel Creation Bot for Gamers With Jobs
 
 ## Local development
 
-* Rename `config.json.sample` to `config.json` and edit the values to your secrets
-* Rename `.env.sample` to `.env` and set `BOT_CONFIG` to the path of that config file
+* Copy `config.json.sample` to `config.json` and edit the values to your secrets
+* Copy `.env.example` to `.env` and set `BOT_CONFIG` to the path of that config file
 * Install [Bun](https://bun.sh) 1.3.14 (see `packageManager` in `package.json`)
 * Install package dependencies: `bun install`
 * Run the bot: `bun run start`
@@ -17,13 +17,15 @@ Stancy Bot - A Voice Channel Creation Bot for Gamers With Jobs
 
 Required config keys: `token`, `clientId`, `environment`.
 
+Every process env var the code reads is listed in `.env.example`.
+
 Optional:
 
 * `bugsnagKey` (config) — when set, `error` logs are reported to Bugsnag. When unset, blank, or the `config.json.sample` placeholder `abc123`, the logger stays on the console only (Game Bot's `BugsnagLogger` with a console fallback).
 * `defaultSettings` — per-server defaults (`modRole`, `adminRole`, `systemNotice`) merged with guild overrides stored in SQLite
 * `botOwnerId` — Discord user id treated as Bot Owner for permission checks. If unset, the Discord application owner (fetched on ready) is used.
 * `STANCY_DATA_DIR` (env) — local directory for SQLite files (defaults to `./data`). In a container this is always `/data`.
-* `DEV_GUILD_ID` (env) or `devGuildId` (config) — register slash commands to this guild instead of globally. Instant updates while developing. If `environment` is `development` and neither is set, Stancy still uses the historical GWJ test guild `545109131330191371` so existing deploys keep working.
+* `DEV_GUILD_ID` (env) or `devGuildId` (config) — register slash commands to this guild instead of globally. Instant updates while developing. If neither is set, commands register globally (and development logs a warning). There is no hardcoded fallback guild.
 * `OTEL_EXPORTER_OTLP_ENDPOINT` (env) — optional OpenTelemetry. Tracing is off unless this endpoint is set. Same shape as Game Bot's `tracing.js`, but gated on an OTLP URL instead of a Honeycomb API key.
 * `OTEL_SERVICE_NAME` (env) — defaults to `stancy-bot` (passed into the OpenTelemetry SDK as the service name / resource, not only logged). SIGTERM/SIGINT close SQLite stores, then flush traces when tracing is enabled, then exit. Tracing does not install its own signal handlers, so store close always owns process lifetime.
 * `OTEL_EXPORTER_OTLP_HEADERS` (env) — comma-separated `key=value` headers for the exporter (for Honeycomb: `x-honeycomb-team=YOUR_API_KEY` and endpoint `https://api.honeycomb.io/v1/traces`).
@@ -41,6 +43,75 @@ Buttons, select menus, and modals are routed to the command whose name is the `c
 Slash commands declare `permLevel` (User, Moderator, Administrator, Server Owner, Bot Owner). The interaction router compares that to the member's highest matching level (mod/admin role names come from guild settings). A non-mod cannot run a Moderator command.
 
 `/settings` (Administrator) views and sets those guild keys. Overrides are stored in `{dataDir}/settings.sqlite` so they survive a container restart. `data/` is gitignored. SIGTERM/SIGINT close the SQLite handles (WAL checkpoint) before exit.
+
+## Start a new bot from Stancy
+
+Stancy is a starter template. The on-demand voice feature is self-contained: delete one command and one event and the rest of the bot still answers `/ping`, `/status`, and `/settings`.
+
+1. **Copy the repo.** Clone or fork it.
+
+   ```
+   git clone https://github.com/furtivespy/gwj-discord-bot.git my-new-bot
+   cd my-new-bot
+   ```
+
+2. **Rename it.** Update at least:
+
+   * `package.json` — `name` and `description`
+   * `src/util/tracing.js` — `DEFAULT_SERVICE_NAME` (and `OTEL_SERVICE_NAME` in `.env`)
+   * `.github/workflows/_docker-build-push.yml` — `IMAGE_NAME`
+   * This README — image name and deploy examples
+   * `AGENTS.md` — Linear project name / id / URL, if you have a Linear project already
+
+3. **Remove voice** (skip this if you want on-demand voice channels):
+
+   ```
+   rm src/commands/slash/voiceCreate.js src/events/voiceStateUpdate.js
+   ```
+
+   Delete **both** files. Leaving one without the other either never cleans empty channels or never creates them. Then optionally:
+
+   ```
+   rm src/util/onDemandVoice.js
+   ```
+
+   Delete the util only after the command and event. You can also drop `GatewayIntentBits.GuildVoiceStates` from the `intents` list in `src/bot.js`. Loaders auto-discover files, so nothing else in `src/` imports those modules.
+
+   If you **keep** voice, create a Discord category named `on-demand voice`. Otherwise `/voice-create` falls back to a GWJ category snowflake in `FALLBACK_PARENT_ID` (`src/util/onDemandVoice.js`) that will not exist in your server — change or remove that constant.
+
+4. **Set env and config.**
+
+   ```
+   cp config.json.sample config.json
+   cp .env.example .env
+   ```
+
+   In `config.json` set `token`, `clientId`, and `environment`. Optional: `bugsnagKey`, `botOwnerId`, `defaultSettings`.
+
+   In `.env` set `BOT_CONFIG` to that config file (`../config.json` from `src/bot.js`, i.e. the file next to `package.json`). Set `DEV_GUILD_ID` to **your** test guild (the key is already in `.env.example`). If you leave it blank, commands register globally and can take up to an hour to appear.
+
+5. **Install, test, register commands.**
+
+   ```
+   bun install
+   bun test
+   bun run start
+   ```
+
+   Starting the bot registers slash commands. They are guild-scoped (instant) when `DEV_GUILD_ID` or `devGuildId` is set, otherwise global. Confirm `/ping`, `/status`, and `/settings` appear in Discord.
+
+6. **Deploy the container.** Put `config.json` on a volume mounted at `/data` (see **Container deploy** below). Build and push via GitHub Actions (`REGISTRY_USERNAME` / `REGISTRY_TOKEN` secrets) or:
+
+   ```
+   docker build -t your-registry/your-bot:latest .
+   docker run -d --name your-bot \
+     --restart unless-stopped \
+     -v /path/to/your-bot-data:/data \
+     -e BOT_CONFIG=/data/config.json \
+     your-registry/your-bot:latest
+   ```
+
+Coding agents: see `AGENTS.md` for layout, Linear project, and conventions.
 
 ## Container deploy
 

@@ -1,5 +1,8 @@
 const { ChannelType } = require("discord.js");
 
+// Helpers for the sample voice command + event only. Safe to delete with
+// src/commands/slash/voiceCreate.js and src/events/voiceStateUpdate.js.
+
 const ON_DEMAND_CATEGORY_NAME = "on-demand voice";
 const FALLBACK_PARENT_ID = 454471197510598666;
 
