@@ -12,7 +12,7 @@ When the user mentions Linear, issues, or project tracking for this codebase, sc
 
 ## Layout
 
-Bun + discord.js v14. Entry point is `src/bot.js`. Adding a `.js` file under `src/commands/slash` or `src/events` (including subfolders) is enough to load it.
+Bun + discord.js v14, ES modules (`"type": "module"`). Entry point is `src/bot.js`. Adding a `.js` file under `src/commands/slash` or `src/events` (including subfolders) is enough to load it. Command and event files should `export default` the class.
 
 | Path | Role |
 | --- | --- |
@@ -21,7 +21,7 @@ Bun + discord.js v14. Entry point is `src/bot.js`. Adding a `.js` file under `sr
 | `src/base/Event.js` | Event base (`eventType`, `run`) |
 | `src/base/EventTypes.js` | Discord event name constants |
 | `src/commands/slash/` | Auto-discovered slash commands |
-| `src/events/` | Auto-discovered events (`ready`, `interactionCreate`, optional `voiceStateUpdate`) |
+| `src/events/` | Auto-discovered events (`ready.js` binds `clientReady`, `interactionCreate`, optional `voiceStateUpdate`) |
 | `src/handlers/` | File discovery, slash load/register, event bind, interaction router |
 | `src/db/` | `BunEnmap` SQLite store and `dataDir` resolution |
 | `src/util/` | Logger, tracing, settings, permissions, shutdown, on-demand voice helpers |

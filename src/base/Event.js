@@ -24,4 +24,4 @@ class Event {
   async run() {}
 }
 
-module.exports = Event;
+export default Event;

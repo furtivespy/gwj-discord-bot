@@ -1,10 +1,10 @@
-const { MessageFlags } = require("discord.js");
-const {
+import { MessageFlags } from "discord.js";
+import {
   checkCommandPermission,
   permissionContext,
   shouldSendPermissionNotice,
-} = require("../util/permissions.js");
-const { guildFromInteraction } = require("../util/settings.js");
+} from "../util/permissions.js";
+import { guildFromInteraction } from "../util/settings.js";
 
 const COMMAND_ERROR = "There was an error while executing this command!";
 const BUTTON_ERROR = "There was an error while processing this button!";
@@ -211,7 +211,7 @@ async function routeInteraction(client, interaction) {
   }
 }
 
-module.exports = {
+export {
   routeInteraction,
   findCommandByCustomId,
   commandNameFromCustomId,

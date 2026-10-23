@@ -1,10 +1,10 @@
-const { describe, expect, test } = require("bun:test");
-const permLevels = require("../src/config.permissionLevels.js");
-const {
+import { describe, expect, test } from "bun:test";
+import permLevels from "../src/config.permissionLevels.js";
+import {
   buildLevelCache,
   checkCommandPermission,
   permlevel,
-} = require("../src/util/permissions.js");
+} from "../src/util/permissions.js";
 
 const levelCache = buildLevelCache(permLevels);
 

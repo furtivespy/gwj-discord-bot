@@ -21,4 +21,4 @@ function memoryStore(initial = {}) {
   };
 }
 
-module.exports = { memoryStore };
+export { memoryStore };

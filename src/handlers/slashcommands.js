@@ -1,8 +1,12 @@
-const path = require("path");
-const { Collection, REST, Routes } = require("discord.js");
-const { listJsFiles, instantiate } = require("./discover");
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { Collection, REST, Routes } from "discord.js";
+import { listJsFiles, instantiate, importJsFile } from "./discover.js";
 
-const DEFAULT_COMMANDS_PATH = path.join(__dirname, "../commands/slash");
+const DEFAULT_COMMANDS_PATH = path.join(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "../commands/slash"
+);
 
 function resolveDevGuildId(config = {}, env = process.env) {
   const fromEnv = typeof env.DEV_GUILD_ID === "string" ? env.DEV_GUILD_ID.trim() : "";
@@ -13,7 +17,7 @@ function resolveDevGuildId(config = {}, env = process.env) {
   return null;
 }
 
-function loadSlashCommands(botClient, options = {}) {
+async function loadSlashCommands(botClient, options = {}) {
   botClient.logger?.info("Loading Slash Commands", "slashcommands.js");
   if (!botClient.slash_commands) {
     botClient.slash_commands = new Collection();
@@ -24,7 +28,7 @@ function loadSlashCommands(botClient, options = {}) {
 
   for (const file of listJsFiles(slashCommandsPath)) {
     try {
-      const command = instantiate(require(file), botClient);
+      const command = instantiate(await importJsFile(file), botClient);
       const name = command.help?.name || command.data?.name || path.basename(file, ".js");
       botClient.logger?.info(`Loading Slash Command: ${name}. 👌`, "slashcommands.js");
       if (command.conf && command.conf.enabled === false) continue;
@@ -73,8 +77,8 @@ async function registerSlashCommands(botClient, commands, options = {}) {
   return { scope: "global", count: payload.length };
 }
 
-function loadAndMaybeRegister(botClient, options = {}) {
-  const commands = loadSlashCommands(botClient, options);
+async function loadAndMaybeRegister(botClient, options = {}) {
+  const commands = await loadSlashCommands(botClient, options);
   const shouldRegister =
     options.register !== false && Boolean(botClient.config?.token);
   if (shouldRegister) {
@@ -89,4 +93,5 @@ loadAndMaybeRegister.loadSlashCommands = loadSlashCommands;
 loadAndMaybeRegister.registerSlashCommands = registerSlashCommands;
 loadAndMaybeRegister.resolveDevGuildId = resolveDevGuildId;
 
-module.exports = loadAndMaybeRegister;
+export { loadSlashCommands, registerSlashCommands, resolveDevGuildId };
+export default loadAndMaybeRegister;

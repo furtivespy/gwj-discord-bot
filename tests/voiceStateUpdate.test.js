@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 import { VOICE_EVENT, tryLoad } from "./helpers/voiceFeature.js";
 
-const VoiceStateUpdate = tryLoad(VOICE_EVENT);
+const VoiceStateUpdate = await tryLoad(VOICE_EVENT);
 
 function silentLogger() {
   return {

@@ -1,10 +1,10 @@
-const { describe, expect, test } = require("bun:test");
-const {
+import { describe, expect, test } from "bun:test";
+import {
   STORE_KEYS,
   closeStores,
   gracefulShutdown,
   registerShutdownHandlers,
-} = require("../src/util/gracefulShutdown.js");
+} from "../src/util/gracefulShutdown.js";
 
 describe("gracefulShutdown", () => {
   test("only closes the settings store this bot opens", () => {

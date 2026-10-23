@@ -1,4 +1,4 @@
-const { shutdownTracing } = require("./tracing");
+import { shutdownTracing } from "./tracing.js";
 
 const STORE_KEYS = ["settings"];
 
@@ -70,7 +70,7 @@ function registerShutdownHandlers(client, { processRef = process, ...shutdownOpt
   return handler;
 }
 
-module.exports = {
+export {
   STORE_KEYS,
   collectStores,
   closeStores,

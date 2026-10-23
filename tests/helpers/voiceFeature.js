@@ -1,16 +1,18 @@
-const fs = require("fs");
-const path = require("path");
+import fs from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
+import { exportedValue } from "../../src/handlers/discover.js";
 
-const SRC = path.join(__dirname, "../../src");
+const SRC = path.join(import.meta.dir, "../../src");
 
 const VOICE_COMMAND = path.join(SRC, "commands/slash/voiceCreate.js");
 const VOICE_EVENT = path.join(SRC, "events/voiceStateUpdate.js");
 const VOICE_UTIL = path.join(SRC, "util/onDemandVoice.js");
 
-function tryLoad(file) {
+async function tryLoad(file) {
   if (!fs.existsSync(file)) return null;
   try {
-    return require(file);
+    return exportedValue(await import(pathToFileURL(file).href));
   } catch {
     return null;
   }
@@ -24,19 +26,19 @@ function hasVoiceEventFile() {
   return fs.existsSync(VOICE_EVENT);
 }
 
-function hasVoiceCommand() {
-  return Boolean(tryLoad(VOICE_COMMAND));
+async function hasVoiceCommand() {
+  return Boolean(await tryLoad(VOICE_COMMAND));
 }
 
-function hasVoiceEvent() {
-  return Boolean(tryLoad(VOICE_EVENT));
+async function hasVoiceEvent() {
+  return Boolean(await tryLoad(VOICE_EVENT));
 }
 
-function hasVoiceUtil() {
-  return Boolean(tryLoad(VOICE_UTIL));
+async function hasVoiceUtil() {
+  return Boolean(await tryLoad(VOICE_UTIL));
 }
 
-module.exports = {
+export {
   VOICE_COMMAND,
   VOICE_EVENT,
   VOICE_UTIL,

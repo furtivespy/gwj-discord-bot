@@ -1,5 +1,6 @@
-const chalk = require("chalk");
-const moment = require("moment");
+import chalk from "chalk";
+import moment from "moment";
+import Bugsnag from "@bugsnag/js";
 
 // config.json.sample uses this so copying the sample does not start Bugsnag.
 const PLACEHOLDER_BUGSNAG_KEYS = new Set(["abc123"]);
@@ -35,7 +36,7 @@ function writeConsole(content, type = "log", location = "Unknown") {
     }
     case "debug": {
       return console.log(
-        `${timestamp}: ${chalk.green(type.toUpperCase())} ${content}  (${location})`
+        `${timestamp}: ${chalk.green(type.toUpperCase())} ${content} (${location})`
       );
     }
     case "cmd": {
@@ -70,7 +71,7 @@ class BugsnagLogger {
     this.bugsnagClient = null;
 
     if (this.bugsnagEnabled) {
-      const client = options.Bugsnag || require("@bugsnag/js");
+      const client = options.Bugsnag || Bugsnag;
       this.bugsnagClient = client.start({
         apiKey,
         releaseStage: options.releaseStage,
@@ -138,4 +139,10 @@ createLogger.writeConsole = writeConsole;
 createLogger.resolveApiKey = resolveApiKey;
 createLogger.PLACEHOLDER_BUGSNAG_KEYS = PLACEHOLDER_BUGSNAG_KEYS;
 
-module.exports = createLogger;
+export {
+  BugsnagLogger,
+  writeConsole,
+  resolveApiKey,
+  PLACEHOLDER_BUGSNAG_KEYS,
+};
+export default createLogger;

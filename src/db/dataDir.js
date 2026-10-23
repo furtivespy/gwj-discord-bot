@@ -1,5 +1,5 @@
-const fs = require("fs");
-const path = require("path");
+import fs from "node:fs";
+import path from "node:path";
 
 const CONTAINER_DATA_DIR = "/data";
 const LOCAL_CONFIG_PATH = "./config.json";
@@ -34,7 +34,7 @@ function ensureDataDir(env = process.env) {
   return dataDir;
 }
 
-module.exports = {
+export {
   CONTAINER_DATA_DIR,
   isInContainer,
   resolveDataDir,

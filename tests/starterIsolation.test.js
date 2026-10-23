@@ -5,7 +5,8 @@ import os from "os";
 import path from "path";
 import { listJsFiles } from "../src/handlers/discover.js";
 import loadEvents from "../src/handlers/events.js";
-import loadSlashCommands, {
+import {
+  loadSlashCommands,
   registerSlashCommands,
 } from "../src/handlers/slashcommands.js";
 import { routeInteraction } from "../src/handlers/interactionRouter.js";
@@ -140,10 +141,10 @@ describe("voice feature isolation", () => {
       symlinkWithout(EVENTS_DIR, eventsPath, new Set(["voiceStateUpdate.js"]));
 
       const client = fakeClient();
-      const commands = loadSlashCommands.loadSlashCommands(client, {
+      const commands = await loadSlashCommands(client, {
         commandsPath,
       });
-      const events = loadEvents(client, { eventsPath });
+      const events = await loadEvents(client, { eventsPath });
 
       expect(commands.map((command) => command.data.name).sort()).toEqual(
         CORE_COMMANDS
@@ -151,7 +152,8 @@ describe("voice feature isolation", () => {
       expect(client.slash_commands.get("voice-create")).toBeUndefined();
       expect(events.map((loaded) => loaded.name).sort()).toEqual(CORE_EVENTS);
       expect(client.events.get("voiceStateUpdate")).toBeUndefined();
-      expect(typeof client.registered.ready.handler).toBe("function");
+      expect(typeof client.registered.clientReady.handler).toBe("function");
+      expect(client.registered.ready).toBeUndefined();
       expect(typeof client.registered.interactionCreate.handler).toBe("function");
       expect(client.registered.voiceStateUpdate).toBeUndefined();
 

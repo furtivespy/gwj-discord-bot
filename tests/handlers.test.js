@@ -1,8 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { Collection } from "discord.js";
+import { Collection, Events } from "discord.js";
 import { listJsFiles } from "../src/handlers/discover.js";
+import EventTypes from "../src/base/EventTypes.js";
 import loadEvents from "../src/handlers/events.js";
-import loadSlashCommands, {
+import {
+  loadSlashCommands,
   resolveDevGuildId,
   registerSlashCommands,
 } from "../src/handlers/slashcommands.js";
@@ -62,7 +64,7 @@ describe("file discovery", () => {
 });
 
 describe("slash command loader", () => {
-  test("auto-discovers ping, settings, and status without a Discord token", () => {
+  test("auto-discovers ping, settings, and status without a Discord token", async () => {
     const logs = [];
     const client = fakeClient();
     client.logger = {
@@ -72,9 +74,7 @@ describe("slash command loader", () => {
       },
     };
 
-    const commands = loadSlashCommands.loadSlashCommands
-      ? loadSlashCommands.loadSlashCommands(client)
-      : loadSlashCommands(client, { register: false });
+    const commands = await loadSlashCommands(client, { register: false });
 
     expect(client.slash_commands.get("ping")?.data.name).toBe("ping");
     expect(client.slash_commands.get("status")?.data.name).toBe("status");
@@ -123,15 +123,18 @@ describe("slash command loader", () => {
 });
 
 describe("event handler", () => {
-  test("registers ready and interactionCreate without a Discord token", () => {
+  test("registers clientReady and interactionCreate without a Discord token", async () => {
     const client = fakeClient();
-    loadEvents(client);
+    await loadEvents(client);
 
-    expect(typeof client.registered.ready.handler).toBe("function");
-    expect(client.registered.ready.bind).toBe("once");
+    expect(EventTypes.READY).toBe(Events.ClientReady);
+    expect(EventTypes.READY).toBe("clientReady");
+    expect(typeof client.registered.clientReady.handler).toBe("function");
+    expect(client.registered.clientReady.bind).toBe("once");
+    expect(client.registered.ready).toBeUndefined();
     expect(typeof client.registered.interactionCreate.handler).toBe("function");
     expect(client.registered.interactionCreate.bind).toBe("on");
-    expect(client.events.get("ready")?.help.eventType).toBe("ready");
+    expect(client.events.get("ready")?.help.eventType).toBe("clientReady");
     expect(client.events.get("interactionCreate")?.help.eventType).toBe(
       "interactionCreate"
     );
@@ -144,9 +147,9 @@ describe("event handler", () => {
     }
   });
 
-  test("ready fetches application into appInfo for Bot Owner checks", async () => {
+  test("clientReady fetches application into appInfo for Bot Owner checks", async () => {
     const client = fakeClient();
-    loadEvents(client);
+    await loadEvents(client);
     const appInfo = { owner: { id: "boss" } };
     client.application = {
       async fetch() {
@@ -154,15 +157,15 @@ describe("event handler", () => {
       },
     };
 
-    await client.registered.ready.handler();
+    await client.registered.clientReady.handler();
 
     expect(client.appInfo).toBe(appInfo);
   });
 
   test("interactionCreate routes a ping button through the loaded command", async () => {
     const client = fakeClient();
-    loadSlashCommands.loadSlashCommands(client);
-    loadEvents(client);
+    await loadSlashCommands(client);
+    await loadEvents(client);
 
     const replies = [];
     await client.registered.interactionCreate.handler({
@@ -197,7 +200,7 @@ describe("slash command registration", () => {
     };
     const client = fakeClient();
     client.config = { token: "t", clientId: "client-1", environment: "production" };
-    const commands = loadSlashCommands.loadSlashCommands(client);
+    const commands = await loadSlashCommands(client);
 
     const guild = await registerSlashCommands(client, commands, {
       rest,
@@ -232,7 +235,7 @@ describe("slash command registration", () => {
         warnings.push(content);
       },
     };
-    const commands = loadSlashCommands.loadSlashCommands(client);
+    const commands = await loadSlashCommands(client);
     const result = await registerSlashCommands(client, commands, {
       rest: { async put() {} },
       env: {},

@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "packageManager": "bun@1.4.3",
   "description": "Discord Bot for GWJ",
+  "type": "module",
   "main": "src/bot.js",
   "scripts": {
     "test": "bun test",

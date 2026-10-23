@@ -1,6 +1,6 @@
-const Event = require("../base/Event.js");
-const EventTypes = require("../base/EventTypes.js");
-const { routeInteraction } = require("../handlers/interactionRouter");
+import Event from "../base/Event.js";
+import EventTypes from "../base/EventTypes.js";
+import { routeInteraction } from "../handlers/interactionRouter.js";
 
 class InteractionCreate extends Event {
   constructor(client) {
@@ -18,4 +18,4 @@ class InteractionCreate extends Event {
   }
 }
 
-module.exports = InteractionCreate;
+export default InteractionCreate;

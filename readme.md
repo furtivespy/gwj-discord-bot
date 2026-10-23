@@ -4,7 +4,7 @@ Stancy Bot - A Voice Channel Creation Bot for Gamers With Jobs
 ## I created this bot for 2 reasons:
 
 1) Our original bot has gone offline and I wanted a replacement
-2) To create a decent base template for a discord.js v14 bot
+2) To create a decent base template for a discord.js v14 bot (ES modules)
 
 ## Local development
 
@@ -35,10 +35,10 @@ Optional:
 
 ## Adding a command or event
 
-Adding a `.js` file under `src/commands/slash` or `src/events` (including subfolders) is the only step to add a feature. The loaders auto-discover files, instantiate the exported class, and log each load.
+Adding a `.js` file under `src/commands/slash` or `src/events` (including subfolders) is the only step to add a feature. The loaders auto-discover files, instantiate the **default-exported** class, and log each load. The project is ES modules (`package.json` `"type": "module"`); use `import`/`export`, not `require`/`module.exports`.
 
 * Slash commands extend `src/base/SlashCommand.js`, set `this.data` (`SlashCommandBuilder`), and implement `execute`. Optional hooks: `autocomplete`, `button`, `selectMenu`, `modal`.
-* Events extend `src/base/Event.js`, set `eventType` from `src/base/EventTypes.js`, and implement `run(...)`.
+* Events extend `src/base/Event.js`, set `eventType` from `src/base/EventTypes.js` (Discord names such as `clientReady`), and implement `run(...)`. The ready handler file is still `src/events/ready.js`; it binds `Events.ClientReady` (`clientReady`).
 
 Buttons, select menus, and modals are routed to the command whose name is the `customId` prefix before `:`. Example: `ping:again` is handled by `/ping`. `/ping` includes a sample **Again** button that proves this path (the same prefix routing a drop "In" button will use).
 
@@ -90,7 +90,7 @@ Stancy is a starter template. The on-demand voice feature is self-contained: del
 
    In `config.json` set `token`, `clientId`, and `environment`. Optional: `bugsnagKey`, `botOwnerId`, `defaultSettings`.
 
-   In `.env` set `BOT_CONFIG` to that config file (`../config.json` from `src/bot.js`, i.e. the file next to `package.json`). Set `DEV_GUILD_ID` to **your** test guild (the key is already in `.env.example`). If you leave it blank, commands register globally and can take up to an hour to appear.
+   In `.env` set `BOT_CONFIG` to that config file. Relative paths are resolved from `src/bot.js`, so from the repo this is `../config.json` (the file next to `package.json`). Set `DEV_GUILD_ID` to **your** test guild (the key is already in `.env.example`). If you leave it blank, commands register globally and can take up to an hour to appear.
 
 5. **Install, test, register commands.**
 

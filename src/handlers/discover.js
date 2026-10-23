@@ -1,5 +1,6 @@
-const fs = require("fs");
-const path = require("path");
+import fs from "node:fs";
+import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 function listJsFiles(dir) {
   if (!fs.existsSync(dir)) return [];
@@ -15,11 +16,23 @@ function listJsFiles(dir) {
   return files.sort();
 }
 
-function instantiate(Exported, client) {
+function exportedValue(mod) {
+  if (mod && typeof mod === "object" && "default" in mod && mod.default !== undefined) {
+    return mod.default;
+  }
+  return mod;
+}
+
+function instantiate(mod, client) {
+  const Exported = exportedValue(mod);
   if (typeof Exported === "function") {
     return new Exported(client);
   }
   return Exported;
 }
 
-module.exports = { listJsFiles, instantiate };
+async function importJsFile(file) {
+  return import(pathToFileURL(file).href);
+}
+
+export { listJsFiles, exportedValue, instantiate, importJsFile };

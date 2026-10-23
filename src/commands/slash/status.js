@@ -1,6 +1,6 @@
-const { SlashCommandBuilder, MessageFlags } = require("discord.js");
-const SlashCommand = require("../../base/SlashCommand.js");
-const { version } = require("../../../package.json");
+import { SlashCommandBuilder, MessageFlags } from "discord.js";
+import SlashCommand from "../../base/SlashCommand.js";
+import { version } from "../../../package.json" with { type: "json" };
 
 function formatUptime(totalSeconds) {
   const seconds = Math.max(0, Math.floor(Number(totalSeconds) || 0));
@@ -67,4 +67,4 @@ Status.formatUptime = formatUptime;
 Status.buildStatusLines = buildStatusLines;
 Status.resolveStatusClient = resolveStatusClient;
 Status.version = version;
-module.exports = Status;
+export default Status;

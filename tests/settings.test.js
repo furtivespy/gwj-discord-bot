@@ -1,14 +1,15 @@
-const { afterAll, describe, expect, test } = require("bun:test");
-const fs = require("fs");
-const os = require("os");
-const path = require("path");
-const BunEnmap = require("../src/db/BunEnmap.js");
-const {
+import { afterAll, describe, expect, test } from "bun:test";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { Database } from "bun:sqlite";
+import BunEnmap from "../src/db/BunEnmap.js";
+import {
   DEFAULT_SETTINGS,
   getSettings,
   writeSettings,
-} = require("../src/util/settings.js");
-const { memoryStore } = require("./helpers/memoryStore.js");
+} from "../src/util/settings.js";
+import { memoryStore } from "./helpers/memoryStore.js";
 
 describe("settings merge", () => {
   test("uses the SQLite settings module from main", () => {
@@ -129,7 +130,6 @@ describe("BunEnmap persistence", () => {
   });
 
   test("skips unreadable rows instead of caching null", () => {
-    const { Database } = require("bun:sqlite");
     const db = new Database(path.join(poisonDir, "settings.sqlite"), { create: true });
     db.exec(`
       CREATE TABLE enmap_store (
@@ -161,7 +161,6 @@ describe("BunEnmap persistence", () => {
 
   test("does not cache JSON null so ensure can restore defaults", () => {
     const nullDir = fs.mkdtempSync(path.join(os.tmpdir(), "stancy-null-"));
-    const { Database } = require("bun:sqlite");
     const db = new Database(path.join(nullDir, "settings.sqlite"), { create: true });
     db.exec(`
       CREATE TABLE enmap_store (
@@ -185,7 +184,6 @@ describe("BunEnmap persistence", () => {
 
   test("does not Function-eval or cache legacy non-JSON values", () => {
     const evalDir = fs.mkdtempSync(path.join(os.tmpdir(), "stancy-eval-"));
-    const { Database } = require("bun:sqlite");
     const db = new Database(path.join(evalDir, "settings.sqlite"), { create: true });
     db.exec(`
       CREATE TABLE enmap_store (
