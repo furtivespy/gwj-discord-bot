@@ -21,7 +21,7 @@ jobs:
 
       - name: Tag
         id: tag
-        uses: K-Phoen/semver-release-action@master
+        uses: K-Phoen/semver-release-action@1a1fc63a95a12b4bb535b53ab0d861bce53ce89d # master 2023-03-11
         with:
           release_branch: main
         env:
