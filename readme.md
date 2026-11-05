@@ -10,7 +10,7 @@ Stancy Bot - A Voice Channel Creation Bot for Gamers With Jobs
 
 * Copy `config.json.sample` to `config.json` and edit the values to your secrets
 * Copy `.env.example` to `.env` and set `BOT_CONFIG` to the path of that config file
-* Install [Bun](https://bun.sh) 1.4.3 (see `packageManager` in `package.json`)
+* Install [Bun](https://bun.sh) 1.4.4 (see `packageManager` in `package.json`)
 * Install package dependencies: `bun install`
 * Run the bot: `bun run start`
 * Run tests: `bun test`
@@ -165,7 +165,6 @@ Every package in `package.json` is imported. None were removed.
 
 Held back (update would be brand-new or would force a risky rewrite):
 
-* **Bun 1.4.3** (not 1.4.4) — 1.4.4 was published less than 48 hours before this review. Same pin in `packageManager`, the `oven/bun` image, and `setup-bun`.
 * **dotenv ^18.0.8** (not 18.0.9) — 18.0.9 was published less than 48 hours before this review; the cooldown should keep it out of the lockfile.
 * **chalk 4.1.2** — still CommonJS; chalk 5 is ESM-native. This template is ES modules (`"type": "module"`), so chalk 4 still `import`s. FUR-118 left this pin; bump it in a dedicated change with a logger color check.
 * **K-Phoen/semver-release-action@master** — already a floating `master` pin on the release workflow. Changing it is out of scope for a dependency bump.
