@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
 import Bugsnag from "@bugsnag/js";
-import createLogger from "../src/util/logger.js";
+import chalk from "chalk";
+import createLogger, { writeConsole } from "../src/util/logger.js";
 
 function capturingWrite() {
   const lines = [];
@@ -171,5 +172,41 @@ describe("BugsnagLogger", () => {
     expect(write.lines).toEqual([
       { content: "visible", type: "debug", location: "tests" },
     ]);
+  });
+});
+
+describe("writeConsole", () => {
+  test("colors every log level with chalk 6 helpers", () => {
+    const previousLevel = chalk.level;
+    chalk.level = 1;
+    const lines = [];
+    const log = spyOn(console, "log").mockImplementation((...args) => {
+      lines.push(args.join(" "));
+    });
+
+    const expected = {
+      log: "\u001b[44mLOG\u001b[49m",
+      warn: "\u001b[30m\u001b[43mWARN\u001b[49m\u001b[39m",
+      error: "\u001b[41mERROR\u001b[49m",
+      debug: "\u001b[32mDEBUG\u001b[39m",
+      cmd: "\u001b[30m\u001b[47mCMD\u001b[49m\u001b[39m",
+      ready: "\u001b[30m\u001b[42mREADY\u001b[49m\u001b[39m",
+      time: "\u001b[30m\u001b[46mTIME\u001b[49m\u001b[39m",
+    };
+
+    try {
+      for (const type of Object.keys(expected)) {
+        writeConsole("sample", type, "tests");
+      }
+
+      expect(lines).toHaveLength(7);
+      for (const [index, type] of Object.keys(expected).entries()) {
+        expect(lines[index]).toContain(expected[type]);
+        expect(lines[index]).toContain("sample");
+      }
+    } finally {
+      log.mockRestore();
+      chalk.level = previousLevel;
+    }
   });
 });
