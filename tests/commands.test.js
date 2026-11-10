@@ -69,6 +69,8 @@ describe("slash command modules", () => {
       const nameOption = json.options.find((option) => option.name === "name");
       expect(nameOption).toBeDefined();
       expect(nameOption.required).toBe(true);
+      expect(nameOption.max_length).toBe(VoiceCreate.CHANNEL_NAME_MAX_LENGTH);
+      expect(VoiceCreate.CHANNEL_NAME_MAX_LENGTH).toBe(100);
     }
   });
 });
@@ -172,6 +174,98 @@ describe.skipIf(!VoiceCreate)("/voice-create", () => {
     });
 
     expect(create.calls[0].parent).toBe(FALLBACK_PARENT_ID);
+  });
+
+  test("rejects a 110-character name without calling Discord", async () => {
+    const voiceCreate = new VoiceCreate({ logger: silentLogger() });
+    const create = async (options) => {
+      create.calls = [...(create.calls || []), options];
+      return { toString: () => "<#voice-3>" };
+    };
+    const reply = async (payload) => {
+      reply.calls = [...(reply.calls || []), payload];
+    };
+    const tooLong = "a".repeat(110);
+
+    await voiceCreate.execute({
+      options: { getString: () => tooLong },
+      guild: {
+        channels: {
+          cache: { find: () => undefined },
+          create,
+        },
+      },
+      client: { logger: silentLogger() },
+      reply,
+    });
+
+    expect(create.calls).toBeUndefined();
+    expect(reply.calls).toEqual([
+      {
+        content: VoiceCreate.NAME_TOO_LONG,
+        flags: MessageFlags.Ephemeral,
+      },
+    ]);
+  });
+
+  test("creates a channel when the name is exactly 100 characters", async () => {
+    const voiceCreate = new VoiceCreate({ logger: silentLogger() });
+    const name = "a".repeat(100);
+    const create = async (options) => {
+      create.calls = [...(create.calls || []), options];
+      return { toString: () => "<#voice-4>" };
+    };
+    const reply = async (payload) => {
+      reply.calls = [...(reply.calls || []), payload];
+    };
+
+    await voiceCreate.execute({
+      options: { getString: () => name },
+      guild: {
+        channels: {
+          cache: { find: () => undefined },
+          create,
+        },
+      },
+      client: { logger: silentLogger() },
+      reply,
+    });
+
+    expect(create.calls[0].name).toBe(name);
+    expect(reply.calls[0].content).toBe("Created <#voice-4> - Click to hop in!");
+  });
+
+  test("replies instead of failing silently when channel create throws", async () => {
+    const voiceCreate = new VoiceCreate({ logger: silentLogger() });
+    const apiError = Object.assign(new Error("Invalid Form Body"), {
+      code: 50035,
+      name: "DiscordAPIError",
+    });
+    const create = async () => {
+      throw apiError;
+    };
+    const reply = async (payload) => {
+      reply.calls = [...(reply.calls || []), payload];
+    };
+
+    await voiceCreate.execute({
+      options: { getString: () => "Raid Night" },
+      guild: {
+        channels: {
+          cache: { find: () => undefined },
+          create,
+        },
+      },
+      client: { logger: silentLogger() },
+      reply,
+    });
+
+    expect(reply.calls).toEqual([
+      {
+        content: VoiceCreate.CREATE_FAILED,
+        flags: MessageFlags.Ephemeral,
+      },
+    ]);
   });
 });
 
