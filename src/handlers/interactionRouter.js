@@ -4,6 +4,7 @@ import {
   permissionContext,
   shouldSendPermissionNotice,
 } from "../util/permissions.js";
+import { qaUnlockAdminCommandsEnabled } from "../util/qaUnlock.js";
 import { guildFromInteraction } from "../util/settings.js";
 
 const COMMAND_ERROR = "There was an error while executing this command!";
@@ -127,6 +128,7 @@ function evaluatePermission(client, interaction, command) {
     levelCache: client.levelCache,
     context,
     command,
+    unlockAdminCommands: qaUnlockAdminCommandsEnabled(client),
   });
 }
 

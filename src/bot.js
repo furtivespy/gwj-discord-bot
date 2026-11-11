@@ -19,6 +19,7 @@ import {
   writeSettings,
 } from "./util/settings.js";
 import { buildLevelCache, permlevel } from "./util/permissions.js";
+import { isQaUnlockAdminCommands } from "./util/qaUnlock.js";
 import { registerShutdownHandlers } from "./util/gracefulShutdown.js";
 import createLogger from "./util/logger.js";
 import loadSlashCommands from "./handlers/slashcommands.js";
@@ -76,6 +77,7 @@ class DiscordBot extends Client {
 
     this.permLevels = permLevels;
     this.levelCache = buildLevelCache(this.permLevels);
+    this.qaUnlockAdminCommands = isQaUnlockAdminCommands();
 
     this.settings = new BunEnmap({
       name: "settings",

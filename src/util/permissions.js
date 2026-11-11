@@ -74,12 +74,16 @@ function checkCommandPermission({
   levelCache,
   context,
   command,
+  unlockAdminCommands = false,
 }) {
   const requiredName = commandPermLevelName(command);
   const required = commandRequiredLevel(levelCache, command);
   const level = permlevel(permLevels, context);
+  const allowed =
+    level >= required ||
+    (unlockAdminCommands === true && requiredName === "Administrator");
   return {
-    allowed: level >= required,
+    allowed,
     level,
     required,
     requiredName,
