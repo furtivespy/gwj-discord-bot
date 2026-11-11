@@ -20,7 +20,7 @@ class VoiceStateUpdate extends Event {
     this.client.logger.info("Voice State Update", "voiceStateUpdate.js");
     if (!shouldDeleteEmptyOnDemandChannel(oldState, newState)) return;
     try {
-      oldState.channel.delete();
+      await oldState.channel.delete();
     } catch (error) {
       this.client.logger.error(error, "voiceStateUpdate.js");
     }
