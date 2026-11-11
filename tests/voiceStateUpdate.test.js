@@ -66,4 +66,30 @@ describe.skipIf(!VoiceStateUpdate)("voiceStateUpdate auto-cleanup", () => {
 
     expect(deleted).toEqual([]);
   });
+
+  test("logs when channel.delete() rejects", async () => {
+    const logged = [];
+    const logger = {
+      ...silentLogger(),
+      error(error, source) {
+        logged.push({ error, source });
+      },
+    };
+    const event = new VoiceStateUpdate({ logger });
+    const failure = new Error("Missing Permissions");
+    const oldState = {
+      channelId: "voice-1",
+      channel: {
+        parent: { name: "on-demand voice" },
+        members: { size: 0 },
+        delete() {
+          return Promise.reject(failure);
+        },
+      },
+    };
+
+    await event.run(oldState, { channelId: "lobby" });
+
+    expect(logged).toEqual([{ error: failure, source: "voiceStateUpdate.js" }]);
+  });
 });
