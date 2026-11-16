@@ -4,7 +4,7 @@ import { ChannelType } from "discord.js";
 // src/commands/slash/voiceCreate.js and src/events/voiceStateUpdate.js.
 
 const ON_DEMAND_CATEGORY_NAME = "on-demand voice";
-const FALLBACK_PARENT_ID = 454471197510598666;
+const FALLBACK_PARENT_ID = "454471197510598666";
 
 function findOnDemandCategory(channelCache) {
   return channelCache.find(
