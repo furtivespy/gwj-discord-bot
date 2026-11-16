@@ -10,7 +10,12 @@ import {
 } from "@opentelemetry/sdk-trace";
 import { getNodeAutoInstrumentations } from "@opentelemetry/auto-instrumentations-node";
 import { SpanStatusCode, trace } from "@opentelemetry/api";
-import { resourceFromAttributes } from "@opentelemetry/resources";
+import {
+  envDetector,
+  hostDetector,
+  processDetector,
+  resourceFromAttributes,
+} from "@opentelemetry/resources";
 import * as tracing from "../src/util/tracing.js";
 import {
   DEFAULT_SERVICE_NAME,
@@ -177,6 +182,11 @@ describe("startTracing", () => {
     expect(deps.instances[0].started).toBe(true);
     expect(deps.constructed[0].serviceName).toBe(DEFAULT_SERVICE_NAME);
     expect(deps.constructed[0].resource).toEqual(deps.resource);
+    expect(deps.constructed[0].resourceDetectors).toEqual([
+      envDetector,
+      processDetector,
+      hostDetector,
+    ]);
   });
 
   test("passes the default service name into NodeSDK and OTEL_SERVICE_NAME", async () => {
@@ -194,7 +204,7 @@ describe("startTracing", () => {
 });
 
 describe("real OpenTelemetry packages", () => {
-  test("0.300 / sdk-trace still export the constructors tracing.js uses", () => {
+  test("0.301 / sdk-trace still export the constructors tracing.js uses", () => {
     expect(typeof NodeSDK).toBe("function");
     expect(typeof OTLPTraceExporter).toBe("function");
     expect(typeof BatchSpanProcessor).toBe("function");
@@ -204,6 +214,9 @@ describe("real OpenTelemetry packages", () => {
     expect(trace).toBeDefined();
     expect(SpanStatusCode).toBeDefined();
     expect(typeof resourceFromAttributes).toBe("function");
+    expect(envDetector).toBeDefined();
+    expect(processDetector).toBeDefined();
+    expect(hostDetector).toBeDefined();
 
     const exporter = new OTLPTraceExporter({
       url: "http://127.0.0.1:4318/v1/traces",

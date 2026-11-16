@@ -51,6 +51,24 @@ async function createServiceResource(serviceName) {
   return undefined;
 }
 
+// NodeSDK 0.301.0 adds `os` and `serviceinstance` to the default detector
+// set unless OTEL_NODE_RESOURCE_DETECTORS is set. Pin the 0.300 defaults so
+// resource attributes stay env + process + host (plus service.name).
+async function pinnedResourceDetectors() {
+  try {
+    const resources = await import("@opentelemetry/resources");
+    const detectors = [
+      resources.envDetector,
+      resources.processDetector,
+      resources.hostDetector,
+    ];
+    if (detectors.every((detector) => detector != null)) return detectors;
+  } catch {
+    // Detectors are optional; NodeSDK will use its own defaults.
+  }
+  return undefined;
+}
+
 function applyServiceName(serviceName, env = process.env) {
   const assignIfBlank = (target) => {
     if (!target || typeof target !== "object") return;
@@ -152,6 +170,11 @@ async function startTracing(env = process.env, deps = {}) {
       ? deps.resource
       : await createServiceResource(config.serviceName);
     if (resource) sdkOptions.resource = resource;
+
+    const resourceDetectors = deps.resourceDetectors !== undefined
+      ? deps.resourceDetectors
+      : await pinnedResourceDetectors();
+    if (resourceDetectors) sdkOptions.resourceDetectors = resourceDetectors;
 
     sdk = new NodeSDK(sdkOptions);
     sdk.start();
