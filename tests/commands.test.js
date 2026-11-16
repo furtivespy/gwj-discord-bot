@@ -173,6 +173,7 @@ describe.skipIf(!VoiceCreate)("/voice-create", () => {
       reply: async () => {},
     });
 
+    expect(create.calls[0].parent).toBe("454471197510598666");
     expect(create.calls[0].parent).toBe(FALLBACK_PARENT_ID);
   });
 

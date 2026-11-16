@@ -31,7 +31,7 @@ describe.skipIf(!voiceHelpers)("on-demand voice helpers", () => {
     expect(ON_DEMAND_CATEGORY_NAME).toBe("on-demand voice");
   });
 
-  test("resolveOnDemandParent uses the category or the legacy fallback id", () => {
+  test("resolveOnDemandParent uses the category or the exact fallback snowflake string", () => {
     const category = {
       id: "cat-1",
       name: "on-demand voice",
@@ -39,7 +39,8 @@ describe.skipIf(!voiceHelpers)("on-demand voice helpers", () => {
     };
 
     expect(resolveOnDemandParent(cacheOf([category]))).toBe(category);
-    expect(resolveOnDemandParent(cacheOf([]))).toBe(FALLBACK_PARENT_ID);
+    expect(FALLBACK_PARENT_ID).toBe("454471197510598666");
+    expect(resolveOnDemandParent(cacheOf([]))).toBe("454471197510598666");
   });
 
   test("deletes an empty on-demand channel after the last member leaves", () => {
